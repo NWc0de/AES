@@ -22,7 +22,8 @@ public class Args {
     public static void showHelp() {
         String help = "Usage: \njava AES -f|-filepath <path to file to be encrypted> " +
                 "-o|-output <filename for output> " +
-                "-k|key <path to keyfile or plaintext key>";
+                "-k|key <path to keyfile or plaintext key> " +
+                "-e|encrypt or -d|decrypt";
         System.out.println(help);
     }
 }
