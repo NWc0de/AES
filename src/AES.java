@@ -15,7 +15,7 @@ public class AES {
 
     public static int[][] stateArray; // The state (two dimensional array containing 128 bit block of input data)
     public static Args cliArgs; // The cli object, facilitates parsing and specification of cli arguments
-    public static FileInputStream fileInput; // class Scanner to read data from file
+    public static FileInputStream fileInput;
 
     /*
      * Orchestrates the cipher operations
@@ -146,6 +146,53 @@ public class AES {
                 stateArray[i][j] = tempRow[(j + i)%4];
             }
         }
+    }
+
+    /*
+     * Mixes columns (interpreted 32 bit words representing finite field elements over GF(2^8))
+     * ref. NIST AES specification pg. 18 sec 5.1.3
+     * Multiplication by 2 is accomplished with a left bit shift and conditional xor
+     * Multiplication by three is accomplished by using the result from x2 then a xor with original byte
+     * ref. (http://www.angelfire.com/biz7/atleast/mix_columns.pdf)
+     * Note: The column mixing operation assures the plaintext is sufficiently diffused
+     */
+    public static void mixColumns() {
+        for (int i = 0; i < 4; i++) {
+            int[] cWord = new int[4];
+            for (int j = 0; j < 4; j++) {
+                cWord[j] = stateArray[j][i];
+            }
+            stateArray[i] = mixColumnWord(cWord);
+        }
+    }
+
+    /*
+     * A helper method for mixColumns
+     * Performs the column mixing operations via galois multiplication
+     * @params 32 bit word representing column of the state in the form of an array of bytes
+     * @return 32 bit word after performing the multiplication operations
+     * https://ipfs.io/ipfs/QmXoypizjW3WknFiJnKLwHCnL72vedxjQkDDP1mXWo6uco/wiki/Rijndael_mix_columns.html
+     */
+    public static int[] mixColumnWord(int[] cWord) {
+        int[] outWord = new int[4];
+        int[] wordByTwo = new int[4];
+        for (int i = 0; i < 4; i++) {
+            int h = cWord[i] >>7; // h will be 1 if the most significant bit of cWord[i] is set, 0 otherwise
+            wordByTwo[i] = cWord[i] <<1; 
+            if (h==1) {
+                wordByTwo[i] ^= 0x11B; // Multiplication in Rijndael's Galois field implemented via a left bit shift
+                                    // and conditional xor with 0x11B (if leftmost bit of original byte was set)
+                                    // 0x11B corresponds to the irreducible quadratic x^8 + x^4 + x^3 + x + 1
+            }
+        }
+        // wordByTwo[i] xor cWord[i] is cWord[i] multiplied by 3 in Rijndael's Galois field
+        // ref. http://www.angelfire.com/biz7/atleast/mix_columns.pdf
+        // see equation 5.6 on pg. 18 of NIST AES specification
+        outWord[0] = wordByTwo[0] ^ (wordByTwo[1] ^ cWord[1]) ^ cWord[2] ^ cWord[3]; // ({02}*w[0]) + ({03}*w[1]) + w[2] + w[3]
+        outWord[1] = cWord[0] ^ wordByTwo[1] ^ (wordByTwo[2] ^ cWord[2]) ^ cWord[3]; // w[0] + ({02}*w[1]) + ({03}*w[2]) + w[3]
+        outWord[2] = cWord[0] ^ cWord[1] ^ wordByTwo[2] ^ (wordByTwo[3] ^ cWord[3]); // w[0] + w[1] + ({02}*w[2]) + ({03}*w[3])
+        outWord[3] = (wordByTwo[0] ^ cWord[0]) ^ cWord[1] ^ cWord[2] ^ wordByTwo[3]; // ({03}^w[0]) + w[1] + w[2] + ({02}*w[3])
+        return outWord;
     }
 
 }
