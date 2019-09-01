@@ -59,4 +59,16 @@ public class CipherTests {
         Assert.assertArrayEquals(resultWordSix, AES.mixColumnWord(initWordSix));
     }
 
+    /*
+     * Tests the rotWord method
+     */
+    @Test
+    public void testRotWord() {
+        int[] initWord = {1, 2, 3, 4};
+        int[] resultWord = {2, 3, 4, 1};
+
+        Assert.assertArrayEquals(resultWord, AES.rotWord(initWord));
+    }
+
 }
+

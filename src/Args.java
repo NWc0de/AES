@@ -14,7 +14,7 @@ public class Args {
     public String output;
 
     @Parameter(names = { "-k", "-key" }, description = "Path to key file, or key in plaintext.")
-    public String key;
+    public String keyFilePath;
 
     /*
      * Displays a help message specifying accepted and required cli arguments
