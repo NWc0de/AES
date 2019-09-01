@@ -9,10 +9,6 @@ import org.junit.Assert;
 
 public class CipherTests {
 
-    /*
-     * Tests the row shifting operations
-     * ref. NIST AES specification figure 8. sec 5.1.2 pg. 17
-     */
     @Test
     public void testShiftRows() {
         int[][] unShifted =  {
@@ -33,9 +29,6 @@ public class CipherTests {
         Assert.assertArrayEquals(AES.stateArray, shifted);
     }
 
-    /*
-     * Tests the column mixing operation
-     */
     @Test
     public void testColumnMix() {
         int[] initWord = {45, 38, 49, 76};
@@ -59,9 +52,6 @@ public class CipherTests {
         Assert.assertArrayEquals(resultWordSix, AES.mixColumnWord(initWordSix));
     }
 
-    /*
-     * Tests the rotWord method
-     */
     @Test
     public void testRotWord() {
         int[] initWord = {1, 2, 3, 4};
@@ -70,9 +60,6 @@ public class CipherTests {
         Assert.assertArrayEquals(resultWord, AES.rotWord(initWord));
     }
 
-    /*
-     * Tests the round constant generator
-     */
     @Test
     public void testRoundConstant() {
         int[] initCon = {0x01, 0, 0, 0}; // Examples lifted from NIST AES specification Appendix A pg. 27
@@ -88,6 +75,33 @@ public class CipherTests {
         Assert.assertArrayEquals(rConAtFour, AES.getNextRCon(4)); // to signify that we are not requesting the initial
         Assert.assertArrayEquals(rConAtFive, AES.getNextRCon(5)); // constant and that a multiplication should be performed
         Assert.assertArrayEquals(rConAtSix, AES.getNextRCon(6));
+    }
+
+    @Test
+    public void testKeyExpansion() {
+        //TODO: Add tests for other key sizes
+        AES.keySize = 4;
+        int[][] initKey = { // Values lifted from example provided in AES Specification Appendix A pg. 27
+                {0x2b, 0x7e, 0x15, 0x16},
+                {0x28, 0xae, 0xd2, 0xa6},
+                {0xab, 0xf7, 0x15, 0x88},
+                {0x09, 0xcf, 0x4f, 0x3c}};
+        int[] roundFour = {0xa0, 0xfa, 0xfe, 0x17};
+        int[] roundTen = {0x59, 0x35, 0x80, 0x7a};
+        int[] roundTwentyThree = {0x11, 0xf9, 0x15, 0xbc};
+        int[] roundFourtyThree = {0xb6, 0x63, 0x0c, 0xa6};
+        AES.roundKeys = new int[4][44];
+        for (int i = 0; i < 4; i++) {
+            for (int j = 0; j < 4; j++) {
+                AES.roundKeys[i][j] = initKey[j][i];
+            }
+        }
+        AES.keyExpansion();
+        Assert.assertArrayEquals(roundFour, AES.getRoundKeyWordAt(4));
+        Assert.assertArrayEquals(roundTen, AES.getRoundKeyWordAt(10));
+        Assert.assertArrayEquals(roundTwentyThree, AES.getRoundKeyWordAt(23));
+        Assert.assertArrayEquals(roundFourtyThree, AES.getRoundKeyWordAt(43));
+
     }
 
 }

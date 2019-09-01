@@ -53,7 +53,8 @@ public class AES {
             Args.showHelp();
             System.exit(1);
         }
-        //TODO: Infer key length here
+        readKeyFile();
+        keyExpansion();
         cipher();
     }
 
@@ -70,7 +71,6 @@ public class AES {
      */
     public static void cipher() {
         readDataFile();
-        keyExpansion();
     }
 
     /*
@@ -254,9 +254,8 @@ public class AES {
      * ref. NIST AES specification pg. 20 fig. 11
      */
     public static void keyExpansion() {
-        readKeyFile();
         int i = keySize;
-        while (i < (4 * (keySize)+7) ) {
+        while (i < (4 * ((keySize)+7)) ) {
             int[] temp = getRoundKeyWordAt(i-1);
             if (i % (keySize) == 0) { // if i is a multiple of keySize a special transformation is applied before xoring
                 temp = xorWords(subWord(rotWord(temp)), getNextRCon(i/(keySize)));
