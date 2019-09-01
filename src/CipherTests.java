@@ -70,5 +70,25 @@ public class CipherTests {
         Assert.assertArrayEquals(resultWord, AES.rotWord(initWord));
     }
 
+    /*
+     * Tests the round constant generator
+     */
+    @Test
+    public void testRoundConstant() {
+        int[] initCon = {0x01, 0, 0, 0}; // Examples lifted from NIST AES specification Appendix A pg. 27
+        int[] rConAtTwo = {0x02, 0, 0, 0};
+        int[] rConAtThree = {0x04, 0, 0, 0};
+        int[] rConAtFour = {0x08, 0, 0, 0};
+        int[] rConAtFive = {0x10, 0, 0, 0};
+        int[] rConAtSix = {0x20, 0, 0, 0};
+
+        Assert.assertArrayEquals(initCon, AES.rCon(1)); // Note: Since the rCon function operates by cumulatively
+        Assert.assertArrayEquals(rConAtTwo, AES.rCon(2)); // multiplying a class field the i parameter has no
+        Assert.assertArrayEquals(rConAtThree, AES.rCon(3)); // consequence after the initial value, it is simply
+        Assert.assertArrayEquals(rConAtFour, AES.rCon(4)); // to signify that we are not requesting the initial
+        Assert.assertArrayEquals(rConAtFive, AES.rCon(5)); // constant and that a multiplication should be performed
+        Assert.assertArrayEquals(rConAtSix, AES.rCon(6));
+    }
+
 }
 

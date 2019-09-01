@@ -14,12 +14,12 @@ import com.beust.jcommander.ParameterException;
 public class AES {
 
     public static int[][] stateArray; // The state (two dimensional array containing 128 bit block of input data)
-    public static Args cliArgs; // The cli object, facilitates parsing and specification of cli arguments
-    public static int[][] roundKeys; // The expanded round keys
+    public static Args cliArgs;
+    public static int[][] roundKeys;
     public static int keySize; // 4, 6, 8 depending on number of 32 bit words in the initial key
+    public static int[] roundCon = {0x01, 0, 0, 0}; // Initial value of the round constant used for key expansion
     public static FileInputStream fileInput;
 
-    // The sbox table
     public static final int[][] sbox = {
             {0x63, 0x7c, 0x77, 0x7b, 0xf2, 0x6b, 0x6f, 0xc5, 0x30, 0x01, 0x67, 0x2b, 0xfe, 0xd7, 0xab, 0x76},
             {0xca, 0x82, 0xc9, 0x7d, 0xfa, 0x59, 0x47, 0xf0, 0xad, 0xd4, 0xa2, 0xaf, 0x9c, 0xa4, 0x72, 0xc0},
@@ -40,8 +40,6 @@ public class AES {
 
     /*
      * Orchestrates the cipher operations
-     * Usage: -f, -filepath: path to file to be encrypted -o, -output: name of file for output -k, -key: key file
-     * -e|encrypt or -d|decrypt
      * @params command line arguments specifying cipher parameters
      */
     public static void main(String[] argv) {
@@ -72,7 +70,7 @@ public class AES {
      */
     public static void cipher() {
         readFileData();
-        readKeyData();
+        keyExpansion();
     }
 
     /*
@@ -115,15 +113,15 @@ public class AES {
     public static void readKeyData() {
         try {
             FileInputStream keyFileInput = new FileInputStream(cliArgs.keyFilePath);
-            keySize = keyFileInput.available(); // determine the number of bytes in the key
-            roundKeys = new int[4][ 4 * ((keySize/4)+7)]; // the number of 32 bit words in the expanded key
+            keySize = keyFileInput.available()/4; // determine the number of 32 bit words in the key
+            roundKeys = new int[4][ 4 * ((keySize)+7)]; // the number of 32 bit words in the expanded key
             int i = 0;                                  // is equal (Nr + 1)*Nb where Nr = the number of rounds
             do {                                       // (which is equal to (Nk + 6), Nb = columns in the state array
                 for (int j = 0; j < 4; j++) {         // and Nk = number of 32 bit words in the key
                     roundKeys[j][i] = keyFileInput.read();
                 }
                 i++;
-            } while (i+1 <= keySize/4);
+            } while (i+1 <= keySize);
         } catch (IOException iox) {
             System.out.println("Error occurred while reading key file");
             iox.printStackTrace();
@@ -187,6 +185,7 @@ public class AES {
      * @params 32 bit word representing column of the state in the form of an array of bytes
      * @return 32 bit word after performing the multiplication operations
      * https://ipfs.io/ipfs/QmXoypizjW3WknFiJnKLwHCnL72vedxjQkDDP1mXWo6uco/wiki/Rijndael_mix_columns.html
+     * ref. http://www.angelfire.com/biz7/atleast/mix_columns.pdf
      */
     public static int[] mixColumnWord(int[] cWord) {
         int[] outWord = new int[4];
@@ -201,7 +200,6 @@ public class AES {
             }
         }
         // wordByTwo[i] xor cWord[i] is cWord[i] multiplied by 3 in Rijndael's Galois field
-        // ref. http://www.angelfire.com/biz7/atleast/mix_columns.pdf
         // see equation 5.6 on pg. 18 of NIST AES specification
         outWord[0] = wordByTwo[0] ^ (wordByTwo[1] ^ cWord[1]) ^ cWord[2] ^ cWord[3]; // ({02}*w[0]) + ({03}*w[1]) + w[2] + w[3]
         outWord[1] = cWord[0] ^ wordByTwo[1] ^ (wordByTwo[2] ^ cWord[2]) ^ cWord[3]; // w[0] + ({02}*w[1]) + ({03}*w[2]) + w[3]
@@ -236,8 +234,8 @@ public class AES {
     public static int[] subWord(int[] iWord) {
         int[] rWord = new int[4];
         for (int i = 0; i < 4; i++) {
-            int x = iWord[i] / 16; // each byte is divided into nibbles which form the
-            int y = iWord[i] % 16; // respective row and column indices for the sbox
+            int x = iWord[i] / 16;
+            int y = iWord[i] % 16;
             rWord[i] = sbox[x][y];
         }
         return rWord;
@@ -260,26 +258,62 @@ public class AES {
 
     /*
      * The Key Expansion method, creates the round keys
+     * ref. NIST AES specification pg. 20 fig. 11
      */
     public static void keyExpansion() {
         readKeyData();
-
+        int i = keySize;
+        while (i < (4 * (keySize)+7) ) { // the number of 32 bit words in the expanded key
+            int[] temp = roundKeys[i-1];
+            if (i % (keySize) == 0) { // if i is a multiple of keySize a special transformation is applied before xoring
+                temp = xorWords(subWord(rotWord(temp)), rCon(i/(keySize)));
+            } else if (keySize > 6 && i % keySize == 4) { // if the key is 256 bits an extra permutation is
+                temp = subWord(temp);                    // applied to the word when (i-4 % keySize == 0)
+            }
+            roundKeys[i] = xorWords(roundKeys[i - keySize], temp);
+            i++;
+        }
     }
 
     /*
+     * Xors two 32 bit words (helper method for keyExpansion)
+     * @params to 32 bit words in the form of integer arrays
+     * @return a 32 bit word, in the form of an integer array, that is the product of xoring the input
+     */
+    public static int[] xorWords(int[] wordOne, int[] wordTwo) {
+        int[] product = new int[4];
+        for (int i = 0; i < 4; i++) {
+            product[i] = wordOne[i] ^ wordTwo[i];
+        }
+        return product;
+    }
+
+
 
     /*
      * Generates a round constant for the key expansion algorithm
      * @params i, the round for which the round constant is needed
      * @return a 32 bit word which corresponds to the round constant for the ith round
-
+     * Note: the last three values of the array will always be 0
+     * Note: This implementation is cumulative, i only serves to signal the first call to the method
+     * Because the round constants will never be needed out of order this method saves time and space
+     */
     public static int[] rCon(int i) {
         // https://engineering.purdue.edu/kak/compsec/NewLectures/Lecture8.pdf
         // https://crypto.stackexchange.com/questions/2418/how-to-use-rcon-in-key-expansion-of-128-bit-advanced-encryption-standard
-        // Note: There are also tables available for this purpose
-        // Maybe this doesn't need to be it's own separate function, should be implemented in key exp method
+        // Return the initial value of rCon, or multiply previous value by 2 to compute next constant
+        if (i == 1) {
+            return roundCon;
+        } else { // multiplication by 2 in the AES Galois field, see mixColumns for elaboration
+            int h = roundCon[0] >>7;
+            roundCon[0] = roundCon[0] <<1;
+            if (h==1) {
+                roundCon[0] ^= 0x11B;
+            }
+            return roundCon;
+        }
     }
 
-    */
+
 
 }
