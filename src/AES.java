@@ -69,7 +69,7 @@ public class AES {
      * @return null, writes ciphertext to output array
      */
     public static void cipher() {
-        readFileData();
+        readDataFile();
         keyExpansion();
     }
 
@@ -78,7 +78,7 @@ public class AES {
      * @return a boolean value indicating whether the final block of the final has been read
      * (true -> the final block has been read. false -> the final block has not been read.)
      */
-    public static boolean readFileData() {
+    public static boolean readDataFile() {
         if (fileInput == null) {
             try {
                 fileInput = new FileInputStream(cliArgs.filePath);
@@ -110,7 +110,7 @@ public class AES {
     /*
      * Reads data from the specified key file into the roundKeys array
      */
-    public static void readKeyData() {
+    public static void readKeyFile() {
         try {
             FileInputStream keyFileInput = new FileInputStream(cliArgs.keyFilePath);
             keySize = keyFileInput.available()/4; // determine the number of 32 bit words in the key
@@ -164,9 +164,6 @@ public class AES {
     /*
      * Mixes columns (interpreted 32 bit words representing finite field elements over GF(2^8))
      * ref. NIST AES specification pg. 18 sec 5.1.3
-     * Multiplication by 2 is accomplished with a left bit shift and conditional xor
-     * Multiplication by three is accomplished by using the result from x2 then a xor with original byte
-     * ref. (http://www.angelfire.com/biz7/atleast/mix_columns.pdf)
      * Note: The column mixing operation assures the plaintext is sufficiently diffused
      */
     public static void mixColumns() {
@@ -180,12 +177,9 @@ public class AES {
     }
 
     /*
-     * A helper method for mixColumns
-     * Performs the column mixing operations via galois multiplication
+     * Performs the column mixing operations via Galois multiplication
      * @params 32 bit word representing column of the state in the form of an array of bytes
      * @return 32 bit word after performing the multiplication operations
-     * https://ipfs.io/ipfs/QmXoypizjW3WknFiJnKLwHCnL72vedxjQkDDP1mXWo6uco/wiki/Rijndael_mix_columns.html
-     * ref. http://www.angelfire.com/biz7/atleast/mix_columns.pdf
      */
     public static int[] mixColumnWord(int[] cWord) {
         int[] outWord = new int[4];
@@ -245,7 +239,6 @@ public class AES {
      * Performs a cyclic permutation (shifts the bytes left) ref NIST AES specification pg. 19 sec 5.2
      * @params initial 32 bit word in the word of an array of 4 integers
      * @return a 32 bit word in which each byte is shifted to the left
-     * Note: [a0, a1, a2, a3] ----> [a1, a2, a3, a0]
      */
     public static int[] rotWord(int[] iWord) {
         int[] rWord = new int[4];
@@ -261,25 +254,34 @@ public class AES {
      * ref. NIST AES specification pg. 20 fig. 11
      */
     public static void keyExpansion() {
-        readKeyData();
+        readKeyFile();
         int i = keySize;
-        while (i < (4 * (keySize)+7) ) { // the number of 32 bit words in the expanded key
-            int[] temp = roundKeys[i-1];
+        while (i < (4 * (keySize)+7) ) {
+            int[] temp = getRoundKeyWordAt(i-1);
             if (i % (keySize) == 0) { // if i is a multiple of keySize a special transformation is applied before xoring
-                temp = xorWords(subWord(rotWord(temp)), rCon(i/(keySize)));
+                temp = xorWords(subWord(rotWord(temp)), getNextRCon(i/(keySize)));
             } else if (keySize > 6 && i % keySize == 4) { // if the key is 256 bits an extra permutation is
                 temp = subWord(temp);                    // applied to the word when (i-4 % keySize == 0)
             }
-            roundKeys[i] = xorWords(roundKeys[i - keySize], temp);
+            setRoundKeysAt(i, xorWords(getRoundKeyWordAt(i - keySize), temp));
             i++;
         }
     }
 
-    /*
-     * Xors two 32 bit words (helper method for keyExpansion)
-     * @params to 32 bit words in the form of integer arrays
-     * @return a 32 bit word, in the form of an integer array, that is the product of xoring the input
-     */
+    public static int[] getRoundKeyWordAt(int i) {
+        int[] roundWord = new int[4];
+        for (int j = 0; j < 4; j++) {
+            roundWord[j] = roundKeys[j][i];
+        }
+        return roundWord;
+    }
+
+    public static void setRoundKeysAt(int i, int[] word) {
+        for (int j = 0; j < 4; j++) {
+            roundKeys[j][i] = word[j];
+        }
+    }
+
     public static int[] xorWords(int[] wordOne, int[] wordTwo) {
         int[] product = new int[4];
         for (int i = 0; i < 4; i++) {
@@ -291,16 +293,11 @@ public class AES {
 
 
     /*
-     * Generates a round constant for the key expansion algorithm
-     * @params i, the round for which the round constant is needed
+     * @params i, a flag indicating whether this is the first rCon (1), or not (!1)
      * @return a 32 bit word which corresponds to the round constant for the ith round
-     * Note: the last three values of the array will always be 0
-     * Note: This implementation is cumulative, i only serves to signal the first call to the method
      * Because the round constants will never be needed out of order this method saves time and space
      */
-    public static int[] rCon(int i) {
-        // https://engineering.purdue.edu/kak/compsec/NewLectures/Lecture8.pdf
-        // https://crypto.stackexchange.com/questions/2418/how-to-use-rcon-in-key-expansion-of-128-bit-advanced-encryption-standard
+    public static int[] getNextRCon(int i) {
         // Return the initial value of rCon, or multiply previous value by 2 to compute next constant
         if (i == 1) {
             return roundCon;
