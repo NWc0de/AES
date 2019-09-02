@@ -7,6 +7,7 @@
 
 import java.io.FileInputStream;
 import java.io.IOException;
+import java.security.InvalidKeyException;
 
 import com.beust.jcommander.JCommander;
 import com.beust.jcommander.ParameterException;
@@ -19,6 +20,7 @@ public class AES {
     public static int keySize; // 4, 6, 8 depending on number of 32 bit words in the initial key
     public static int[] roundCon = {0x01, 0, 0, 0}; // Initial value of the round constant used for key expansion
     public static FileInputStream fileInput;
+    public static int bytesToCipher;
 
     public static final int[][] sbox = {
             {0x63, 0x7c, 0x77, 0x7b, 0xf2, 0x6b, 0x6f, 0xc5, 0x30, 0x01, 0x67, 0x2b, 0xfe, 0xd7, 0xab, 0x76},
@@ -55,6 +57,8 @@ public class AES {
         }
         readKeyFile();
         keyExpansion();
+
+        readDataFile(); //TODO: implement method to continuously read, cipher, and output data
         cipher();
     }
 
@@ -65,12 +69,22 @@ public class AES {
      */
 
     /*
-     * Performs one round of the cipher functions
-     * @params null, uses class var state to perform operations
-     * @return null, writes ciphertext to output array
+     * Performs the cipher operations on the state
+     * ref. NIST AES specification pg. 15 fig 5.
      */
     public static void cipher() {
-        readDataFile();
+        int rounds = keySize + 6;
+        addRoundKey(getRoundKeyWordsInRange(0, keySize-1));
+        for (int i = 1; i < rounds; i++) {
+            subBytes();
+            shiftRows();
+            mixColumns();
+            addRoundKey(getRoundKeyWordsInRange(i*4, ((i+1)*4)-1));
+        }
+
+        subBytes();
+        shiftRows();
+        addRoundKey(getRoundKeyWordsInRange(rounds*4, ((rounds+1)*4)-1));
     }
 
     /*
@@ -79,9 +93,11 @@ public class AES {
      * (true -> the final block has been read. false -> the final block has not been read.)
      */
     public static boolean readDataFile() {
+        boolean reachedEOF = false;
         if (fileInput == null) {
             try {
                 fileInput = new FileInputStream(cliArgs.filePath);
+                bytesToCipher = fileInput.available();
             } catch (IOException iox) {
                 System.out.println("Error occurred while creating file stream.");
                 iox.printStackTrace();
@@ -91,11 +107,36 @@ public class AES {
         // read data into state per NIST specification (ref. pg.9 sec 3.4)
         //TODO: Padding?
         try {
-            int i = 0, j = 0;
-            while (i < 4) {
-                stateArray[j][i] = fileInput.read();
-                j++;
-                if (j == 4) { i++; j = 0; }
+            if (bytesToCipher >= 16) {
+                int i = 0, j = 0;
+                while (i < 4) {
+                    stateArray[j][i] = fileInput.read();
+                    j++;
+                    if (j == 4) {
+                        i++;
+                        j = 0;
+                    }
+                }
+                bytesToCipher -= 16;
+            } else { // PKCS#5 padding scheme
+                reachedEOF = true;
+                int toPad = 16 - bytesToCipher;
+                for (int i = 0; i < bytesToCipher / 4; i++) {
+                    for (int j = 0; j < 4; j++) {
+                        stateArray[j][i] = fileInput.read();
+                    }
+                }
+                for (int i = 0; i < bytesToCipher % 4; i++) {
+                    stateArray[i][bytesToCipher / 4] = fileInput.read();
+                }
+                for (int i = bytesToCipher % 4; i < 4; i++) {
+                    stateArray[i][bytesToCipher / 4] = toPad;
+                }
+                for (int i = (bytesToCipher / 4 )+ 1; i < 4; i++) {
+                   for (int j = 0; j < 4; j++) {
+                       stateArray[j][i] = toPad;
+                   }
+                }
             }
         } catch (IOException iox) {
             System.out.println("Error occurred while reading file.");
@@ -104,7 +145,7 @@ public class AES {
         }
         //TODO: Remember to close readers after final cipher loop
         //TODO: return false if the last byte of the final has been read
-        return false;
+        return reachedEOF;
     }
 
     /*
@@ -125,6 +166,10 @@ public class AES {
         } catch (IOException iox) {
             System.out.println("Error occurred while reading key file");
             iox.printStackTrace();
+            System.exit(1);
+        }
+        if (!(keySize%4==0 && keySize < 8)) {
+            System.out.println("Error during parsing of key. Please 128, 192, or 256 bit keys.");
             System.exit(1);
         }
     }
@@ -172,7 +217,10 @@ public class AES {
             for (int j = 0; j < 4; j++) {
                 cWord[j] = stateArray[j][i];
             }
-            stateArray[i] = mixColumnWord(cWord);
+            cWord = mixColumnWord(cWord);
+            for (int j = 0; j < 4; j++) {
+                stateArray[j][i] = cWord[j];
+            }
         }
     }
 
@@ -202,10 +250,6 @@ public class AES {
         return outWord;
     }
 
-    /*
-     * Adds a round key to the state by bitwise xor of the column words w/ key words
-     * @params two dimensional array of integers w/ columns corresponding to the 32 bit key words
-     */
     public static void addRoundKey(int[][] keyBlock) {
         for (int i = 0; i < 4; i++) {
             for (int j = 0; j < 4; j++) {
@@ -287,6 +331,19 @@ public class AES {
             product[i] = wordOne[i] ^ wordTwo[i];
         }
         return product;
+    }
+
+    public static int[][] getRoundKeyWordsInRange(int i, int j) {
+        int[][] roundKeyBlock = new int[4][i+j+1];
+        int currentWord = 0;
+        for (int x = i; x <= j; x++) {
+            int[] temp = getRoundKeyWordAt(x);
+            for (int z = 0; z < 4; z++) {
+                roundKeyBlock[z][currentWord] = temp[z];
+            }
+            currentWord++;
+        }
+        return roundKeyBlock;
     }
 
 
