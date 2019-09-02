@@ -5,9 +5,10 @@
  * ref. https://www.nist.gov/publications/advanced-encryption-standard-aes
  */
 
+import java.io.File;
 import java.io.FileInputStream;
+import java.io.FileOutputStream;
 import java.io.IOException;
-import java.security.InvalidKeyException;
 
 import com.beust.jcommander.JCommander;
 import com.beust.jcommander.ParameterException;
@@ -17,9 +18,11 @@ public class AES {
     public static int[][] stateArray; // The state (two dimensional array containing 128 bit block of input data)
     public static Args cliArgs;
     public static int[][] roundKeys;
+    public static boolean isFirstBlockWritten;
     public static int keySize; // 4, 6, 8 depending on number of 32 bit words in the initial key
     public static int[] roundCon = {0x01, 0, 0, 0}; // Initial value of the round constant used for key expansion
     public static FileInputStream fileInput;
+    public static FileOutputStream fileOutput;
     public static int bytesToCipher;
 
     public static final int[][] sbox = {
@@ -47,6 +50,7 @@ public class AES {
     public static void main(String[] argv) {
         stateArray = new int[4][4];
         fileInput = null;
+        isFirstBlockWritten = false;
         // Parse the cli arguments
         cliArgs = new Args();
         try { //TODO: Handle case in which insufficient arguments are provided
@@ -60,6 +64,7 @@ public class AES {
 
         readDataFile(); //TODO: implement method to continuously read, cipher, and output data
         cipher();
+        writeStateToFile();
     }
 
     /*
@@ -146,6 +151,42 @@ public class AES {
         //TODO: Remember to close readers after final cipher loop
         //TODO: return false if the last byte of the final has been read
         return reachedEOF;
+    }
+
+    public static void writeStateToFile() {
+        //TODO: recognize padding when reachedEOF is true
+        if (!isFirstBlockWritten) {
+            try {
+                File output = new File(cliArgs.output);
+                if (output.exists()) {
+                    System.out.println("Please specify a unique filename.");
+                    System.exit(1);
+                }
+                output.createNewFile();
+                fileOutput = new FileOutputStream(cliArgs.output);
+                for (int i = 0; i < 4; i++) {
+                    for (int j = 0; j < 4; j++) {
+                        fileOutput.write(stateArray[j][i]);
+                    }
+                }
+                isFirstBlockWritten = true;
+                fileOutput = new FileOutputStream(cliArgs.output, true); // set fileOutput to append data
+            } catch (IOException iox) {
+                System.out.println("Error creating output file.");
+                iox.printStackTrace();
+            }
+        } else {
+            try {
+                for (int i = 0; i < 4; i++) {
+                    for (int j = 0; j < 4; j++) {
+                        fileOutput.write(stateArray[j][i]);
+                    }
+                }
+            } catch (IOException iox) {
+                System.out.println("Error writing data to file.");
+                iox.printStackTrace();
+            }
+        }
     }
 
     /*
