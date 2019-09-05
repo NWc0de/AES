@@ -8,21 +8,24 @@
 import org.junit.Test;
 import org.junit.Assert;
 
+import java.io.FileInputStream;
+import java.io.IOException;
+
 public class CipherTests {
 
     @Test
     public void testShiftRows() {
         int[][] unShifted =  {
-                {37,45,10,242},
-                {80,49,37,229},
-                {68,46,196,235},
-                {70,51,229,167}};
+                {0,1,2,3},
+                {0,1,2,3},
+                {0,1,2,3},
+                {0,1,2,3}};
 
         int[][] shifted =  {
-                {37,45,10,242},
-                {49,37,229,80}, // shifted left by one byte
-                {196,235,68,46}, // shifted left by two bytes
-                {167,70,51,229}}; // shifted left by three bytes
+                {0,1,2,3},
+                {1,2,3,0}, // shifted left by one byte
+                {2,3,0,1}, // shifted left by two bytes
+                {3,0,1,2}}; // shifted left by three bytes
 
         AES.stateArray = unShifted;
         AES.shiftRows(false);
@@ -46,11 +49,17 @@ public class CipherTests {
         int[] resultWordSix = {213, 213, 215, 214};
 
         Assert.assertArrayEquals(resultWord, AES.mixColumnWord(initWord));
+        Assert.assertArrayEquals(initWord, AES.invMixColumnWord(resultWord));
         Assert.assertArrayEquals(resultWordTwo, AES.mixColumnWord(initWordTwo));
+        Assert.assertArrayEquals(initWordTwo, AES.invMixColumnWord(resultWordTwo));
         Assert.assertArrayEquals(resultWordThree, AES.mixColumnWord(initWordThree));
+        Assert.assertArrayEquals(initWordThree, AES.invMixColumnWord(resultWordThree));
         Assert.assertArrayEquals(resultWordFour, AES.mixColumnWord(initWordFour));
+        Assert.assertArrayEquals(initWordFour, AES.invMixColumnWord(resultWordFour));
         Assert.assertArrayEquals(resultWordFive, AES.mixColumnWord(initWordFive));
+        Assert.assertArrayEquals(initWordFive, AES.invMixColumnWord(resultWordFive));
         Assert.assertArrayEquals(resultWordSix, AES.mixColumnWord(initWordSix));
+        Assert.assertArrayEquals(initWordSix, AES.invMixColumnWord(resultWordSix));
     }
 
     @Test
@@ -127,36 +136,71 @@ public class CipherTests {
 
         AES.keySize = 4;
         AES.roundKeys = new int[4][44];
+        AES.stateArray = new int[4][4];
         for (int i = 0; i < 4; i++) {
             for (int j = 0; j < 4; j++) {
                 AES.roundKeys[i][j] = initKey[j][i];
+                AES.stateArray[i][j] = initState[i][j];
             }
         }
         AES.keyExpansion();
-        AES.stateArray = initState;
         AES.cipher();
 
         Assert.assertArrayEquals(resultState, AES.stateArray);
-
-        AES.invCipher();
-        Assert.assertArrayEquals(initState, AES.stateArray);
 
         AES.roundCon = new int[]{0x01, 0, 0, 0};
     }
 
     @Test
+    public void testCipherDecryption() {
+        int[][] initKey = { // Values lifted from example provided in AES Specification Appendix B pg. 33
+                {153, 10, 39, 222},
+                {156, 180, 77, 119},
+                {28, 109, 178, 247},
+                {117, 163, 211, 139}};
+        int[][] initState = {
+                {16, 16, 16, 16},
+                {16, 16, 16, 16},
+                {16, 16, 16, 16},
+                {16, 16, 16, 16}};
+
+        AES.keySize = 4;
+        AES.roundKeys = new int[4][44];
+        AES.stateArray = new int[4][4];
+
+        for (int i = 0; i < 4; i++) {
+            for (int j = 0; j < 4; j++) {
+                AES.roundKeys[j][i] = initKey[j][i];
+                AES.stateArray[i][j] = initState[i][j];
+            }
+        }
+        AES.keyExpansion();
+        AES.cipher();
+        AES.invCipher();
+
+        for (int i = 0; i < 4; i++) {
+            for (int j = 0; j < 4; j++) {
+                System.out.print(AES.stateArray[i][j] + ",");
+            }
+            System.out.println();
+        }
+
+        Assert.assertArrayEquals(initState, AES.stateArray);
+    }
+
+    @Test
     public void testInvShiftRows() {
         int[][] unShifted =  {
-                {37,45,10,242},
-                {80,49,37,229},
-                {68,46,196,235},
-                {70,51,229,167}};
+                {0,1,2,3},
+                {0,1,2,3},
+                {0,1,2,3},
+                {0,1,2,3}};
 
         int[][] shifted =  {
-                {37,45,10,242},
-                {229,80,49,37}, // shifted right by one byte
-                {196,235,68,46}, // shifted right by two bytes
-                {51,229,167,70}}; // shifted right by three bytes
+                {0,1,2,3},
+                {3,0,1,2}, // shifted right by one byte
+                {2,3,0,1}, // shifted right by two bytes
+                {1,2,3,0}}; // shifted right by three bytes
 
         AES.stateArray = unShifted;
         AES.shiftRows(true);
@@ -172,6 +216,48 @@ public class CipherTests {
         Assert.assertEquals(0x27, AES.galoisMult(5, 11));
         Assert.assertEquals(0x77, AES.galoisMult(9, 15));
         Assert.assertEquals(0x26, AES.galoisMult(2, 19));
+        Assert.assertEquals(0x31, AES.galoisMult(7, 11));
+    }
+
+    @Test
+    public void testPadding() {
+        int[][] stateArray = {
+                {37,45,10,242},
+                {80,49,37,229},
+                {68,46,196,235},
+                {70,51,229,167}};
+
+        int toPad = 9;
+        int toRead = 7;
+        int i = 0, j = 0, padded = 0;
+        while (toRead > 0|| padded < toPad) {
+            if (toRead > 0) {
+                stateArray[j][i] = 255;
+            }
+            if (padded < toPad) {
+                stateArray[3 - j][3 - i] = toPad;
+                padded++;
+            }
+            toRead--;
+            j++;
+            if (j == 4) {i++; j = 0;}
+        }
+
+        int toWrite = 16 - stateArray[3][3];
+        i = 0; j = 0;
+        while (toWrite > 0) {
+            stateArray[j][i] = 101;
+            toWrite--;
+            j++;
+            if (j == 4) {i++; j = 0;}
+        }
+
+        for (int z =0; z < 4; z++) {
+            for (int a = 0; a < 4; a++) {
+                System.out.print(stateArray[z][a] + ",");
+            }
+            System.out.println();
+        }
     }
 
 

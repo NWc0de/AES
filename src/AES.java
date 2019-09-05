@@ -68,21 +68,26 @@ public class AES {
         fileInput = null;
         isFirstBlockWritten = false;
         cliArgs = new Args();
-        try { //TODO: Handle case in which insufficient arguments are provided
+        try {
             JCommander.newBuilder().addObject(cliArgs).build().parse(argv);
         } catch (ParameterException prx) {
             System.out.println("A filepath, output filename, and keyfile path must be specified.");
             Args.showHelp();
             System.exit(1);
         }
+        initializeFileOperators();
         readKeyFile();
         keyExpansion();
 
-
+        if (!cliArgs.decrypt) {
+            encrypt();
+        } else {
+            decrypt();
+        }
     }
 
     public static void encrypt() {
-        boolean reachedEOF = readDataFile();
+        boolean reachedEOF = readDataFile(); // TODO: try making readDataFile() condition to while
         while(!reachedEOF) {
             cipher();
             writeStateToFile();
@@ -90,6 +95,7 @@ public class AES {
         }
         try {
             applyPadding();
+            cipher();
             writeStateToFile();
             closeFileOperators();
         } catch (IOException iox) {
@@ -99,7 +105,20 @@ public class AES {
     }
 
     public static void decrypt() {
-
+        readDataFile();
+        while(bytesToCipher > 0) {
+            invCipher();
+            writeStateToFile();
+            readDataFile();
+        }
+        try {
+            invCipher();
+            writeFinalBlock();
+            closeFileOperators();
+        } catch (IOException iox) {
+            System.out.println("Error writing final block to file.");
+            iox.printStackTrace();
+        }
     }
 
     /*
@@ -110,7 +129,7 @@ public class AES {
 
     /*
      * Performs the cipher operations on the state
-     * ref. NIST AES specification pg. 15 fig 5.
+     * ref. NIST AES specification pg. 15 fig 5
      */
     public static void cipher() {
         int rounds = keySize + 6;
@@ -121,7 +140,6 @@ public class AES {
             mixColumns();
             addRoundKey(getRoundKeyWordsInRange(i*4, ((i+1)*4)-1));
         }
-
         subBytes(false);
         shiftRows(false);
         addRoundKey(getRoundKeyWordsInRange(rounds*4, ((rounds+1)*4)-1));
@@ -129,11 +147,12 @@ public class AES {
 
     /*
      * Performs inverse cipher operations on the state
+     * ref. NIST AES specification pg.21 fig 12
      */
     public static void invCipher() {
         int rounds = keySize + 6;
         addRoundKey(getRoundKeyWordsInRange(rounds*4, ((rounds+1)*4)-1));
-        for (int i = rounds; i > 1; i--) {
+        for (int i = rounds-1; i > 0; i--) {
             shiftRows(true);
             subBytes(true);
             addRoundKey(getRoundKeyWordsInRange(i*4, ((i+1)*4)-1));
@@ -144,24 +163,28 @@ public class AES {
         addRoundKey(getRoundKeyWordsInRange(0, keySize-1));
     }
 
+    public static void initializeFileOperators() {
+        try {
+            fileInput = new FileInputStream(cliArgs.filePath);
+            bytesToCipher = fileInput.available();
+            File output = new File(cliArgs.output);
+            if (output.exists()) {
+                System.out.println("Please specify a unique filename with an appropriate extension");
+                System.exit(1);
+            }
+            fileOutput = new FileOutputStream(cliArgs.output, true);
+        } catch (IOException iox) {
+            System.out.println("Error occurred while creating file stream.");
+            iox.printStackTrace();
+            System.exit(1);
+        }
+    }
+
     /*
-     * Reads 128 bits from the specified filepath into the state array
-     * @return a boolean value indicating whether the final block of the file has been read
-     * (true -> the final block has been read. false -> the final block has not been read.)
+     * Reads 128 bits from the specified filepath into the state array per NIST specification (ref. pg.9 sec 3.4)
      */
     public static boolean readDataFile() {
         boolean reachedEOF = false;
-        if (fileInput == null) {
-            try {
-                fileInput = new FileInputStream(cliArgs.filePath);
-                bytesToCipher = fileInput.available();
-            } catch (IOException iox) {
-                System.out.println("Error occurred while creating file stream.");
-                iox.printStackTrace();
-                System.exit(1);
-            }
-        }
-        // read data into state per NIST specification (ref. pg.9 sec 3.4)
         try {
             if (bytesToCipher >= 16) {
                 int i = 0, j = 0;
@@ -188,22 +211,19 @@ public class AES {
      * Even if no padding is required an extra block is added
      */
     public static void applyPadding() throws java.io.IOException {
-        for (int i = 0; i < bytesToCipher / 4; i++) {
-            for (int j = 0; j < 4; j++) {
+        int toRead = 16 - toPad;
+        int i = 0, j = 0, padded = 0;
+        while (toRead > 0 || padded < toPad) {
+            if (toRead > 0) {
                 stateArray[j][i] = fileInput.read();
+                toRead--;
             }
-        }
-        for (int i = 0; i < bytesToCipher % 4; i++) {
-            stateArray[i][bytesToCipher / 4] = fileInput.read();
-        }
-        for (int i = bytesToCipher % 4; i < 4; i++) {
-            int col = (toPad == 0) ? 0 : bytesToCipher / 4;
-            stateArray[i][col] = toPad;
-        }
-        for (int i = (bytesToCipher / 4 )+ 1; i < 4; i++) {
-            for (int j = 0; j < 4; j++) {
-                stateArray[j][i] = toPad;
+            if (padded < toPad) {
+                stateArray[3 - j][3 - i] = toPad;
+                padded++;
             }
+            j++;
+            if (j == 4) {i++; j = 0;}
         }
     }
 
@@ -211,7 +231,7 @@ public class AES {
      * Removes padding, assumes final block will always be padded
      */
     public static void writeFinalBlock() throws IOException {
-        int toWrite = 16 - stateArray[4][4];
+        int toWrite = 16 - stateArray[3][3];
         int i = 0, j = 0;
         while (toWrite > 0) {
             fileOutput.write(stateArray[j][i]);
@@ -227,38 +247,16 @@ public class AES {
     }
 
     public static void writeStateToFile() {
-        //TODO: recognize padding when reachedEOF is true
-        if (!isFirstBlockWritten) {
-            try {
-                File output = new File(cliArgs.output);
-                if (output.exists()) {
-                    System.out.println("Please specify a unique filename.");
-                    System.exit(1);
-                }
-                output.createNewFile();
-                fileOutput = new FileOutputStream(cliArgs.output);
-                for (int i = 0; i < 4; i++) {
-                    for (int j = 0; j < 4; j++) {
-                        fileOutput.write(stateArray[j][i]);
-                    }
-                }
-                isFirstBlockWritten = true;
-                fileOutput = new FileOutputStream(cliArgs.output, true); // set fileOutput to append data
-            } catch (IOException iox) {
-                System.out.println("Error creating output file.");
-                iox.printStackTrace();
+        try {
+            int i = 0, j = 0, toWrite = 0;
+            while (toWrite < 16) {
+                fileOutput.write(stateArray[j][i]);
+                j++; toWrite++;
+                if (j == 4) {i++; j = 0;}
             }
-        } else {
-            try {
-                for (int i = 0; i < 4; i++) {
-                    for (int j = 0; j < 4; j++) {
-                        fileOutput.write(stateArray[j][i]);
-                    }
-                }
-            } catch (IOException iox) {
-                System.out.println("Error writing data to file.");
-                iox.printStackTrace();
-            }
+        } catch (IOException iox) {
+            System.out.println("Error writing data to file.");
+            iox.printStackTrace();
         }
     }
 
@@ -519,7 +517,6 @@ public class AES {
     }
 
     /*
-     * A helper method for invMixColumns
      * Performs multiplication in GF(2^8) w/ the Russian Peasant multiplication algorithm
      */
     public static int galoisMult(int a, int b) {

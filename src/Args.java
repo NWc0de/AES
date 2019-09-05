@@ -16,7 +16,7 @@ public class Args {
     @Parameter(names = { "-k", "-key" }, description = "Path to key file, or key in plaintext.", required = true)
     public String keyFilePath;
 
-    @Parameter(names = { "-d", "-decrypt" }, description = "Decryption mode.", required = true)
+    @Parameter(names = { "-d", "-decrypt" }, description = "Decryption mode.")
     public boolean decrypt = false;
 
     /*
