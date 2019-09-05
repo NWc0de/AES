@@ -5,10 +5,7 @@
  * ref. https://www.nist.gov/publications/advanced-encryption-standard-aes
  */
 
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileOutputStream;
-import java.io.IOException;
+import java.io.*;
 
 import com.beust.jcommander.JCommander;
 import com.beust.jcommander.ParameterException;
@@ -21,6 +18,7 @@ public class AES {
     public static boolean isFirstBlockWritten;
     public static int keySize; // 4, 6, 8 depending on number of 32 bit words in the initial key
     public static int[] roundCon = {0x01, 0, 0, 0}; // Initial value of the round constant used for key expansion
+    public static int toPad;
     public static FileInputStream fileInput;
     public static FileOutputStream fileOutput;
     public static int bytesToCipher;
@@ -69,20 +67,39 @@ public class AES {
         stateArray = new int[4][4];
         fileInput = null;
         isFirstBlockWritten = false;
-        // Parse the cli arguments
         cliArgs = new Args();
         try { //TODO: Handle case in which insufficient arguments are provided
             JCommander.newBuilder().addObject(cliArgs).build().parse(argv);
-        } catch (ParameterException prx) { // extraneous parameters raise exception
+        } catch (ParameterException prx) {
+            System.out.println("A filepath, output filename, and keyfile path must be specified.");
             Args.showHelp();
             System.exit(1);
         }
         readKeyFile();
         keyExpansion();
 
-        readDataFile(); //TODO: implement method to continuously read, cipher, and output data
-        cipher();
-        writeStateToFile();
+
+    }
+
+    public static void encrypt() {
+        boolean reachedEOF = readDataFile();
+        while(!reachedEOF) {
+            cipher();
+            writeStateToFile();
+            reachedEOF = readDataFile();
+        }
+        try {
+            applyPadding();
+            writeStateToFile();
+            closeFileOperators();
+        } catch (IOException iox) {
+            System.out.println("Error writing final block to file.");
+            iox.printStackTrace();
+        }
+    }
+
+    public static void decrypt() {
+
     }
 
     /*
@@ -129,7 +146,7 @@ public class AES {
 
     /*
      * Reads 128 bits from the specified filepath into the state array
-     * @return a boolean value indicating whether the final block of the final has been read
+     * @return a boolean value indicating whether the final block of the file has been read
      * (true -> the final block has been read. false -> the final block has not been read.)
      */
     public static boolean readDataFile() {
@@ -145,47 +162,68 @@ public class AES {
             }
         }
         // read data into state per NIST specification (ref. pg.9 sec 3.4)
-        //TODO: Padding?
         try {
             if (bytesToCipher >= 16) {
                 int i = 0, j = 0;
                 while (i < 4) {
                     stateArray[j][i] = fileInput.read();
                     j++;
-                    if (j == 4) {
-                        i++;
-                        j = 0;
-                    }
+                    if (j == 4) {i++; j = 0;}
                 }
                 bytesToCipher -= 16;
-            } else { // PKCS#7 padding scheme
+            } else {
                 reachedEOF = true;
-                int toPad = 16 - bytesToCipher;
-                for (int i = 0; i < bytesToCipher / 4; i++) {
-                    for (int j = 0; j < 4; j++) {
-                        stateArray[j][i] = fileInput.read();
-                    }
-                }
-                for (int i = 0; i < bytesToCipher % 4; i++) {
-                    stateArray[i][bytesToCipher / 4] = fileInput.read();
-                }
-                for (int i = bytesToCipher % 4; i < 4; i++) {
-                    stateArray[i][bytesToCipher / 4] = toPad;
-                }
-                for (int i = (bytesToCipher / 4 )+ 1; i < 4; i++) {
-                   for (int j = 0; j < 4; j++) {
-                       stateArray[j][i] = toPad;
-                   }
-                }
+                toPad = (bytesToCipher == 0) ? 16 : 16 - bytesToCipher;
             }
         } catch (IOException iox) {
             System.out.println("Error occurred while reading file.");
             iox.printStackTrace();
             System.exit(1);
         }
-        //TODO: Remember to close readers after final cipher loop
-        //TODO: return false if the last byte of the final has been read
         return reachedEOF;
+    }
+
+    /*
+     * Apply PKCS#7 padding
+     * Even if no padding is required an extra block is added
+     */
+    public static void applyPadding() throws java.io.IOException {
+        for (int i = 0; i < bytesToCipher / 4; i++) {
+            for (int j = 0; j < 4; j++) {
+                stateArray[j][i] = fileInput.read();
+            }
+        }
+        for (int i = 0; i < bytesToCipher % 4; i++) {
+            stateArray[i][bytesToCipher / 4] = fileInput.read();
+        }
+        for (int i = bytesToCipher % 4; i < 4; i++) {
+            int col = (toPad == 0) ? 0 : bytesToCipher / 4;
+            stateArray[i][col] = toPad;
+        }
+        for (int i = (bytesToCipher / 4 )+ 1; i < 4; i++) {
+            for (int j = 0; j < 4; j++) {
+                stateArray[j][i] = toPad;
+            }
+        }
+    }
+
+    /*
+     * Removes padding, assumes final block will always be padded
+     */
+    public static void writeFinalBlock() throws IOException {
+        int toWrite = 16 - stateArray[4][4];
+        int i = 0, j = 0;
+        while (toWrite > 0) {
+            fileOutput.write(stateArray[j][i]);
+            toWrite--;
+            j++;
+            if (j == 4) {i++; j = 0;}
+        }
+    }
+
+    public static void closeFileOperators() throws java.io.IOException {
+        fileOutput.close();
+        fileInput.close();
     }
 
     public static void writeStateToFile() {
@@ -231,7 +269,7 @@ public class AES {
         try {
             FileInputStream keyFileInput = new FileInputStream(cliArgs.keyFilePath);
             keySize = keyFileInput.available()/4; // determine the number of 32 bit words in the key
-            roundKeys = new int[4][ 4 * ((keySize)+7)]; // the number of 32 bit words in the expanded key
+            roundKeys = new int[4][4 * ((keySize)+7)]; // the number of 32 bit words in the expanded key
             int i = 0;                                  // is equal (Nr + 1)*Nb where Nr = the number of rounds
             do {                                       // (which is equal to (Nk + 6), Nb = columns in the state array
                 for (int j = 0; j < 4; j++) {         // and Nk = number of 32 bit words in the key
