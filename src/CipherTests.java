@@ -2,6 +2,7 @@
  * Author: Spencer Little
  * Date: 08/29/2019
  * A set of unit tests for the various functions of the AES cipher
+ * Note: Must be run individually, testing round constant interferes with key schedule
  */
 
 import org.junit.Test;
@@ -24,7 +25,7 @@ public class CipherTests {
                 {167,70,51,229}}; // shifted left by three bytes
 
         AES.stateArray = unShifted;
-        AES.shiftRows();
+        AES.shiftRows(false);
 
         Assert.assertArrayEquals(AES.stateArray, shifted);
     }
@@ -53,14 +54,6 @@ public class CipherTests {
     }
 
     @Test
-    public void testRotWord() {
-        int[] initWord = {1, 2, 3, 4};
-        int[] resultWord = {2, 3, 4, 1};
-
-        Assert.assertArrayEquals(resultWord, AES.rotWord(initWord));
-    }
-
-    @Test
     public void testRoundConstant() {
         int[] initCon = {0x01, 0, 0, 0}; // Examples lifted from NIST AES specification Appendix A pg. 27
         int[] rConAtTwo = {0x02, 0, 0, 0};
@@ -75,6 +68,16 @@ public class CipherTests {
         Assert.assertArrayEquals(rConAtFour, AES.getNextRCon(4)); // to signify that we are not requesting the initial
         Assert.assertArrayEquals(rConAtFive, AES.getNextRCon(5)); // constant and that a multiplication should be performed
         Assert.assertArrayEquals(rConAtSix, AES.getNextRCon(6));
+
+        AES.roundCon = new int[]{0x01, 0, 0, 0}; // reset round constant to avoid interference with other tests
+    }
+
+    @Test
+    public void testRotWord() {
+        int[] initWord = {1, 2, 3, 4};
+        int[] resultWord = {2, 3, 4, 1};
+
+        Assert.assertArrayEquals(resultWord, AES.rotWord(initWord));
     }
 
     @Test
@@ -135,7 +138,42 @@ public class CipherTests {
 
         Assert.assertArrayEquals(resultState, AES.stateArray);
 
+        AES.invCipher();
+        Assert.assertArrayEquals(initState, AES.stateArray);
+
+        AES.roundCon = new int[]{0x01, 0, 0, 0};
     }
+
+    @Test
+    public void testInvShiftRows() {
+        int[][] unShifted =  {
+                {37,45,10,242},
+                {80,49,37,229},
+                {68,46,196,235},
+                {70,51,229,167}};
+
+        int[][] shifted =  {
+                {37,45,10,242},
+                {229,80,49,37}, // shifted right by one byte
+                {196,235,68,46}, // shifted right by two bytes
+                {51,229,167,70}}; // shifted right by three bytes
+
+        AES.stateArray = unShifted;
+        AES.shiftRows(true);
+
+        Assert.assertArrayEquals(AES.stateArray, shifted);
+    }
+
+    @Test
+    public void testGaloisMult() {
+        Assert.assertEquals(0x23, AES.galoisMult(7, 13));
+        Assert.assertEquals(0x5c, AES.galoisMult(12, 13));
+        Assert.assertEquals(0x48, AES.galoisMult(14, 12));
+        Assert.assertEquals(0x27, AES.galoisMult(5, 11));
+        Assert.assertEquals(0x77, AES.galoisMult(9, 15));
+        Assert.assertEquals(0x26, AES.galoisMult(2, 19));
+    }
+
 
 }
 
