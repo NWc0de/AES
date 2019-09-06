@@ -2,7 +2,6 @@
  * Author: Spencer Little
  * Date: 08/29/2019
  * A set of unit tests for the various functions of the AES cipher
- * Note: Must be run individually, testing round constant interferes with key schedule
  */
 
 import org.junit.Test;
@@ -88,17 +87,34 @@ public class CipherTests {
 
     @Test
     public void testKeyExpansion() {
-        //TODO: Add tests for other key sizes
-        AES.keySize = 4;
         int[][] initKey = { // Values lifted from example provided in AES Specification Appendix A pg. 27
                 {0x2b, 0x7e, 0x15, 0x16},
                 {0x28, 0xae, 0xd2, 0xa6},
                 {0xab, 0xf7, 0x15, 0x88},
                 {0x09, 0xcf, 0x4f, 0x3c}};
+        int[][] initKeyTwo = {
+                {0x8e, 0x73, 0xb0, 0xf7},
+                {0xda, 0x0e, 0x64, 0x52},
+                {0xc8, 0x10, 0xf3, 0x2b},
+                {0x80, 0x90, 0x79, 0xe5},
+                {0x62, 0xf8, 0xea, 0xd2},
+                {0x52, 0x2c, 0x6b, 0x7b}};
+        int[][] initKeyThree = {
+                {0x60, 0x3d, 0xeb, 0x10},
+                {0x15, 0xca, 0x71, 0xbe},
+                {0x2b, 0x73, 0xae, 0xf0},
+                {0x85, 0x7d, 0x77, 0x81},
+                {0x1f, 0x35, 0x2c, 0x07},
+                {0x3b, 0x61, 0x08, 0xd7},
+                {0x2d, 0x98, 0x10, 0xa3},
+                {0x09, 0x14, 0xdf, 0xf4}};
+
+        // 128-bit key
         int[] roundFour = {0xa0, 0xfa, 0xfe, 0x17};
         int[] roundTen = {0x59, 0x35, 0x80, 0x7a};
         int[] roundTwentyThree = {0x11, 0xf9, 0x15, 0xbc};
         int[] roundFourtyThree = {0xb6, 0x63, 0x0c, 0xa6};
+        AES.keySize = 4;
         AES.roundKeys = new int[4][44];
         for (int i = 0; i < 4; i++) {
             for (int j = 0; j < 4; j++) {
@@ -111,6 +127,45 @@ public class CipherTests {
         Assert.assertArrayEquals(roundTwentyThree, AES.getRoundKeyWordAt(23));
         Assert.assertArrayEquals(roundFourtyThree, AES.getRoundKeyWordAt(43));
 
+        AES.roundCon = new int[]{0x01, 0, 0, 0};
+
+        // 192-bit key
+        roundTen = new int[]{0x0e, 0x7a, 0x95, 0xb9};
+        roundTwentyThree = new int[]{0x11, 0x3b, 0x30, 0xe6};
+        roundFourtyThree = new int[]{0xad, 0x07, 0xd7, 0x53};
+        int[] roundFiftyOne = {0x01, 0x00, 0x22, 0x02};
+        AES.keySize = 6;
+        AES.roundKeys = new int[4][52];
+        for (int i = 0; i < 4; i++) {
+            for (int j = 0; j < 6; j++) {
+                AES.roundKeys[i][j] = initKeyTwo[j][i];
+            }
+        }
+        AES.keyExpansion();
+        Assert.assertArrayEquals(roundTen, AES.getRoundKeyWordAt(10));
+        Assert.assertArrayEquals(roundTwentyThree, AES.getRoundKeyWordAt(23));
+        Assert.assertArrayEquals(roundFourtyThree, AES.getRoundKeyWordAt(43));
+        Assert.assertArrayEquals(roundFiftyOne, AES.getRoundKeyWordAt(51));
+
+        AES.roundCon = new int[]{0x01, 0, 0, 0};
+
+        // 256-bit key
+        roundTwentyThree = new int[]{0x2f, 0x6c, 0x79, 0xb3};
+        roundFourtyThree = new int[]{0x96, 0x74, 0xee, 0x15};
+        roundFiftyOne = new int[]{0x74, 0x01, 0x90, 0x5a};
+        int[] roundFiftyNine = {0x70, 0x6c, 0x63, 0x1e};
+        AES.keySize = 8;
+        AES.roundKeys = new int[4][60];
+        for (int i = 0; i < 4; i++) {
+            for (int j = 0; j < 8; j++) {
+                AES.roundKeys[i][j] = initKeyThree[j][i];
+            }
+        }
+        AES.keyExpansion();
+        Assert.assertArrayEquals(roundTwentyThree, AES.getRoundKeyWordAt(23));
+        Assert.assertArrayEquals(roundFourtyThree, AES.getRoundKeyWordAt(43));
+        Assert.assertArrayEquals(roundFiftyOne, AES.getRoundKeyWordAt(51));
+        Assert.assertArrayEquals(roundFiftyNine, AES.getRoundKeyWordAt(59));
     }
 
     @Test

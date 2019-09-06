@@ -275,7 +275,7 @@ public class AES {
             iox.printStackTrace();
             System.exit(1);
         }
-        if (!(keySize%4==0 && keySize < 8)) {
+        if (keySize > 8 || keySize <= 2 || keySize%2==1) {
             System.out.println("Error during parsing of key. Please 128, 192, or 256 bit keys.");
             System.exit(1);
         }
@@ -420,7 +420,7 @@ public class AES {
             int[] temp = getRoundKeyWordAt(i-1);
             if (i % (keySize) == 0) { // if i is a multiple of keySize a special transformation is applied before xoring
                 temp = xorWords(subWord(rotWord(temp)), getNextRCon(i/(keySize)));
-            } else if (keySize > 6 && i % keySize == 4) { 
+            } else if (keySize > 6 && i % keySize == 4) {
                 temp = subWord(temp);
             }
             setRoundKeysAt(i, xorWords(getRoundKeyWordAt(i - keySize), temp));
