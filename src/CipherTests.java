@@ -8,9 +8,6 @@
 import org.junit.Test;
 import org.junit.Assert;
 
-import java.io.FileInputStream;
-import java.io.IOException;
-
 public class CipherTests {
 
     @Test
@@ -48,18 +45,18 @@ public class CipherTests {
         int[] initWordSix = {212, 212, 212, 213};
         int[] resultWordSix = {213, 213, 215, 214};
 
-        Assert.assertArrayEquals(resultWord, AES.mixColumnWord(initWord));
-        Assert.assertArrayEquals(initWord, AES.invMixColumnWord(resultWord));
-        Assert.assertArrayEquals(resultWordTwo, AES.mixColumnWord(initWordTwo));
-        Assert.assertArrayEquals(initWordTwo, AES.invMixColumnWord(resultWordTwo));
-        Assert.assertArrayEquals(resultWordThree, AES.mixColumnWord(initWordThree));
-        Assert.assertArrayEquals(initWordThree, AES.invMixColumnWord(resultWordThree));
-        Assert.assertArrayEquals(resultWordFour, AES.mixColumnWord(initWordFour));
-        Assert.assertArrayEquals(initWordFour, AES.invMixColumnWord(resultWordFour));
-        Assert.assertArrayEquals(resultWordFive, AES.mixColumnWord(initWordFive));
-        Assert.assertArrayEquals(initWordFive, AES.invMixColumnWord(resultWordFive));
-        Assert.assertArrayEquals(resultWordSix, AES.mixColumnWord(initWordSix));
-        Assert.assertArrayEquals(initWordSix, AES.invMixColumnWord(resultWordSix));
+        Assert.assertArrayEquals(resultWord, AES.mixColumnWord(initWord, false));
+        Assert.assertArrayEquals(initWord, AES.mixColumnWord(resultWord, true));
+        Assert.assertArrayEquals(resultWordTwo, AES.mixColumnWord(initWordTwo, false));
+        Assert.assertArrayEquals(initWordTwo, AES.mixColumnWord(resultWordTwo, true));
+        Assert.assertArrayEquals(resultWordThree, AES.mixColumnWord(initWordThree, false));
+        Assert.assertArrayEquals(initWordThree, AES.mixColumnWord(resultWordThree, true));
+        Assert.assertArrayEquals(resultWordFour, AES.mixColumnWord(initWordFour, false));
+        Assert.assertArrayEquals(initWordFour, AES.mixColumnWord(resultWordFour, true));
+        Assert.assertArrayEquals(resultWordFive, AES.mixColumnWord(initWordFive, false));
+        Assert.assertArrayEquals(initWordFive, AES.mixColumnWord(resultWordFive, true));
+        Assert.assertArrayEquals(resultWordSix, AES.mixColumnWord(initWordSix, false));
+        Assert.assertArrayEquals(initWordSix, AES.mixColumnWord(resultWordSix, true));
     }
 
     @Test
@@ -78,7 +75,7 @@ public class CipherTests {
         Assert.assertArrayEquals(rConAtFive, AES.getNextRCon(5)); // constant and that a multiplication should be performed
         Assert.assertArrayEquals(rConAtSix, AES.getNextRCon(6));
 
-        AES.roundCon = new int[]{0x01, 0, 0, 0}; // reset round constant to avoid interference with other tests
+        AES.roundCon = new int[]{0x01, 0, 0, 0}; // Reset round constant to avoid interference with other tests
     }
 
     @Test
@@ -178,14 +175,8 @@ public class CipherTests {
         AES.cipher();
         AES.invCipher();
 
-        for (int i = 0; i < 4; i++) {
-            for (int j = 0; j < 4; j++) {
-                System.out.print(AES.stateArray[i][j] + ",");
-            }
-            System.out.println();
-        }
-
         Assert.assertArrayEquals(initState, AES.stateArray);
+        AES.roundCon = new int[]{0x01, 0, 0, 0};
     }
 
     @Test
@@ -226,7 +217,18 @@ public class CipherTests {
                 {80,49,37,229},
                 {68,46,196,235},
                 {70,51,229,167}};
+        int[][] nineBytesPadded = {
+                {255,255,9,9},
+                {255,255,9,9},
+                {255,255,9,9},
+                {255,9,9,9}};
+        int[][] elevenBytesWritten = {
+                {101,101,101,9},
+                {101,101,101,9},
+                {101,101,101,9},
+                {101,101,9,9}};
 
+        // Method from applyPadding()
         int toPad = 9;
         int toRead = 7;
         int i = 0, j = 0, padded = 0;
@@ -242,8 +244,10 @@ public class CipherTests {
             j++;
             if (j == 4) {i++; j = 0;}
         }
+        Assert.assertArrayEquals(stateArray, nineBytesPadded);
 
-        int toWrite = 16 - stateArray[3][3];
+        // Method from toWrite()
+        int toWrite = 11;
         i = 0; j = 0;
         while (toWrite > 0) {
             stateArray[j][i] = 101;
@@ -251,13 +255,7 @@ public class CipherTests {
             j++;
             if (j == 4) {i++; j = 0;}
         }
-
-        for (int z =0; z < 4; z++) {
-            for (int a = 0; a < 4; a++) {
-                System.out.print(stateArray[z][a] + ",");
-            }
-            System.out.println();
-        }
+        Assert.assertArrayEquals(stateArray, elevenBytesWritten);
     }
 
 

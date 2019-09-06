@@ -65,7 +65,6 @@ public class AES {
      */
     public static void main(String[] argv) {
         stateArray = new int[4][4];
-        fileInput = null;
         isFirstBlockWritten = false;
         cliArgs = new Args();
         try {
@@ -87,11 +86,9 @@ public class AES {
     }
 
     public static void encrypt() {
-        boolean reachedEOF = readDataFile(); // TODO: try making readDataFile() condition to while
-        while(!reachedEOF) {
+        while(!readDataFile()) {
             cipher();
             writeStateToFile();
-            reachedEOF = readDataFile();
         }
         try {
             applyPadding();
@@ -105,11 +102,9 @@ public class AES {
     }
 
     public static void decrypt() {
-        readDataFile();
-        while(bytesToCipher > 0) {
+        while(!readDataFile()) {
             invCipher();
             writeStateToFile();
-            readDataFile();
         }
         try {
             invCipher();
@@ -137,7 +132,7 @@ public class AES {
         for (int i = 1; i < rounds; i++) {
             subBytes(false);
             shiftRows(false);
-            mixColumns();
+            mixColumns(false);
             addRoundKey(getRoundKeyWordsInRange(i*4, ((i+1)*4)-1));
         }
         subBytes(false);
@@ -156,7 +151,7 @@ public class AES {
             shiftRows(true);
             subBytes(true);
             addRoundKey(getRoundKeyWordsInRange(i*4, ((i+1)*4)-1));
-            invMixColumns();
+            mixColumns(true);
         }
         shiftRows(true);
         subBytes(true);
@@ -306,7 +301,7 @@ public class AES {
     }
 
     /*
-     * Shifts bytes in the last three rows (NIST AES specification pg. 17 sec 5.1.2)
+     * Shifts bytes in the last three rows (NIST AES specification pg. 17 sec 5.1.2/pg. 21 sec 5.3.1)
      * @params boolean inverse to indicate the direction of the shift
      */
     public static void shiftRows(boolean inverse) {
@@ -321,17 +316,16 @@ public class AES {
     }
 
     /*
-     * Mixes columns (interpreted 32 bit words representing finite field elements over GF(2^8))
      * ref. NIST AES specification pg. 18 sec 5.1.3
      * Note: The column mixing operation assures the plaintext is sufficiently diffused
      */
-    public static void mixColumns() {
+    public static void mixColumns(boolean inverse) {
         for (int i = 0; i < 4; i++) {
             int[] cWord = new int[4];
             for (int j = 0; j < 4; j++) {
                 cWord[j] = stateArray[j][i];
             }
-            cWord = mixColumnWord(cWord);
+            cWord = mixColumnWord(cWord, inverse);
             for (int j = 0; j < 4; j++) {
                 stateArray[j][i] = cWord[j];
             }
@@ -339,28 +333,20 @@ public class AES {
     }
 
     /*
-     * Performs the column mixing operations via Galois multiplication
-     * @params 32 bit word representing column of the state in the form of an array of bytes
-     * @return 32 bit word after performing the multiplication operations
+     * Performs the column mixing operations via Galois multiplication (ref. NIST AES sepcification eq 5.6 pg. 18/eq 5.10 pg. 23)
+     * @params 32 bit word representing column of the state, boolean indicating which coefficients should be used
+     * @return 32 bit word, the product of the multiplication operations
      */
-    public static int[] mixColumnWord(int[] cWord) {
+    public static int[] mixColumnWord(int[] cWord, boolean inverse) {
         int[] outWord = new int[4];
-        int[] wordByTwo = new int[4];
+        int[] coef = inverse ? new int[]{0x0e, 0x0b, 0x0d, 0x09} : new int[]{0x02, 0x03, 0x01, 0x01};
         for (int i = 0; i < 4; i++) {
-            int h = cWord[i] >>7; // h will be 1 if the most significant bit of cWord[i] is set, 0 otherwise
-            wordByTwo[i] = cWord[i] <<1;
-            if (h==1) {
-                wordByTwo[i] ^= 0x11B; // Multiplication in Rijndael's Galois field implemented via a left bit shift
-                                    // and conditional xor with 0x11B (if leftmost bit of original byte was set)
-                                    // 0x11B corresponds to the irreducible quadratic x^8 + x^4 + x^3 + x + 1
+            int temp = 0;
+            for (int j = 0; j < 4; j++) {
+                temp ^= galoisMult(cWord[j], coef[(j - i + 4) % 4]);
             }
+            outWord[i] = temp;
         }
-        // wordByTwo[i] xor cWord[i] is cWord[i] multiplied by 3 in Rijndael's Galois field
-        // see equation 5.6 on pg. 18 of NIST AES specification
-        outWord[0] = wordByTwo[0] ^ (wordByTwo[1] ^ cWord[1]) ^ cWord[2] ^ cWord[3]; // ({02}*w[0]) + ({03}*w[1]) + w[2] + w[3]
-        outWord[1] = cWord[0] ^ wordByTwo[1] ^ (wordByTwo[2] ^ cWord[2]) ^ cWord[3]; // w[0] + ({02}*w[1]) + ({03}*w[2]) + w[3]
-        outWord[2] = cWord[0] ^ cWord[1] ^ wordByTwo[2] ^ (wordByTwo[3] ^ cWord[3]); // w[0] + w[1] + ({02}*w[2]) + ({03}*w[3])
-        outWord[3] = (wordByTwo[0] ^ cWord[0]) ^ cWord[1] ^ cWord[2] ^ wordByTwo[3]; // ({03}^w[0]) + w[1] + w[2] + ({02}*w[3])
         return outWord;
     }
 
@@ -370,6 +356,23 @@ public class AES {
                 stateArray[j][i] ^= keyBlock[j][i];
             }
         }
+    }
+
+    /*
+     * Performs multiplication in GF(2^8) w/ the Russian Peasant multiplication algorithm
+     */
+    public static int galoisMult(int a, int b) {
+        int res = 0;
+        while (a != 0 && b != 0) {
+            if ((b & 1) == 1)
+                res ^= a;
+            if ((a & 0x80) != 0)
+                a = (a <<1) ^ 0x11B;
+            else
+                a <<= 1;
+            b >>= 1;
+        }
+        return res;
     }
 
     /*
@@ -394,7 +397,7 @@ public class AES {
     }
 
     /*
-     * Performs a cyclic permutation (shifts the bytes left) ref NIST AES specification pg. 19 sec 5.2
+     * Performs a cyclic permutation (shifts the bytes left)
      * @params initial 32 bit word in the word of an array of 4 integers
      * @return a 32 bit word in which each byte is shifted to the left
      */
@@ -417,8 +420,8 @@ public class AES {
             int[] temp = getRoundKeyWordAt(i-1);
             if (i % (keySize) == 0) { // if i is a multiple of keySize a special transformation is applied before xoring
                 temp = xorWords(subWord(rotWord(temp)), getNextRCon(i/(keySize)));
-            } else if (keySize > 6 && i % keySize == 4) { // if the key is 256 bits an extra permutation is
-                temp = subWord(temp);                    // applied to the word when (i-4 % keySize == 0)
+            } else if (keySize > 6 && i % keySize == 4) { 
+                temp = subWord(temp);
             }
             setRoundKeysAt(i, xorWords(getRoundKeyWordAt(i - keySize), temp));
             i++;
@@ -469,69 +472,10 @@ public class AES {
         // Return the initial value of rCon, or multiply previous value by 2 to compute next constant
         if (i == 1) {
             return roundCon;
-        } else { // multiplication by 2 in the AES Galois field, see mixColumns for elaboration
-            int h = roundCon[0] >>7;
-            roundCon[0] = roundCon[0] <<1;
-            if (h==1) {
-                roundCon[0] ^= 0x11B;
-            }
+        } else {
+            roundCon = new int[]{galoisMult(roundCon[0], 2), 0, 0, 0};
             return roundCon;
         }
     }
-
-    /*
-    ------------------------------------------
-              Inverse Cipher Methods
-    ------------------------------------------
-    */
-
-    public static void invMixColumns() {
-        for (int i = 0; i < 4; i++) {
-            int[] cWord = new int[4];
-            for (int j = 0; j < 4; j++) {
-                cWord[j] = stateArray[j][i];
-            }
-            cWord = invMixColumnWord(cWord);
-            for (int j = 0; j < 4; j++) {
-                stateArray[j][i] = cWord[j];
-            }
-        }
-    }
-
-    /*
-     * A helper method for invMixColumns
-     * Computes the Galois matrix multiplication operation on the given word
-     * @return 32 bit word corresponding to product of GF mult (ref. NIST AES specification pg. 25 5.3.3)
-     */
-    public static int[] invMixColumnWord(int[] cWord) {
-        int[] outWord = new int[4];
-        int[] coef = {0x0e, 0x0b, 0x0d, 0x09};
-        for (int i = 0; i < 4; i++) {
-            int temp = 0;
-            for (int j = 0; j < 4; j++) {
-                temp ^= galoisMult(cWord[j], coef[(j - i + 4) % 4]);
-            }
-            outWord[i] = temp;
-        }
-        return outWord;
-    }
-
-    /*
-     * Performs multiplication in GF(2^8) w/ the Russian Peasant multiplication algorithm
-     */
-    public static int galoisMult(int a, int b) {
-        int res = 0;
-        while (a != 0 && b != 0) {
-            if ((b & 1) == 1)
-                res ^= a;
-            if ((a & 0x80) != 0)
-                a = (a <<1) ^ 0x11B;
-            else
-                a <<= 1;
-        b >>= 1;
-        }
-        return res;
-    }
-
 
 }
