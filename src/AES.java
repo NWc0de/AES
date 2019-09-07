@@ -78,15 +78,15 @@ public class AES {
         readKeyFile();
         keyExpansion();
 
-        if (!cliArgs.decrypt) {
-            encrypt();
-        } else {
+        if (cliArgs.decrypt) {
             decrypt();
+        } else {
+            encrypt();
         }
     }
 
     public static void encrypt() {
-        while(!readDataFile()) {
+        while(readDataFile()) {
             cipher();
             writeStateToFile();
         }
@@ -102,7 +102,7 @@ public class AES {
     }
 
     public static void decrypt() {
-        while(!readDataFile()) {
+        while(readDataFile()) {
             invCipher();
             writeStateToFile();
         }
@@ -179,7 +179,7 @@ public class AES {
      * Reads 128 bits from the specified filepath into the state array per NIST specification (ref. pg.9 sec 3.4)
      */
     public static boolean readDataFile() {
-        boolean reachedEOF = false;
+        boolean isBlockAvailable = true;
         try {
             if (bytesToCipher >= 16) {
                 int i = 0, j = 0;
@@ -190,7 +190,7 @@ public class AES {
                 }
                 bytesToCipher -= 16;
             } else {
-                reachedEOF = true;
+                isBlockAvailable = false;
                 toPad = (bytesToCipher == 0) ? 16 : 16 - bytesToCipher;
             }
         } catch (IOException iox) {
@@ -198,7 +198,7 @@ public class AES {
             iox.printStackTrace();
             System.exit(1);
         }
-        return reachedEOF;
+        return isBlockAvailable;
     }
 
     /*
