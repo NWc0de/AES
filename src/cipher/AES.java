@@ -1,9 +1,10 @@
 /**
  * Author: Spencer Little (mrlittle@uw.edu)
  * Date: 08/28/18
- * An implementation of the AES (Rijndael) cipher
+ * An implementation of the Cipher.AES (Rijndael) cipher
  * ref. https://www.nist.gov/publications/advanced-encryption-standard-aes
  */
+package cipher;
 
 import java.io.*;
 
@@ -124,7 +125,7 @@ public class AES {
 
     /*
      * Performs the cipher operations on the state
-     * ref. NIST AES specification pg. 15 fig 5
+     * ref. NIST Cipher.AES specification pg. 15 fig 5
      */
     public static void cipher() {
         int rounds = keySize + 6;
@@ -142,7 +143,7 @@ public class AES {
 
     /*
      * Performs inverse cipher operations on the state
-     * ref. NIST AES specification pg.21 fig 12
+     * ref. NIST Cipher.AES specification pg.21 fig 12
      */
     public static void invCipher() {
         int rounds = keySize + 6;
@@ -301,7 +302,7 @@ public class AES {
     }
 
     /*
-     * Shifts bytes in the last three rows (NIST AES specification pg. 17 sec 5.1.2/pg. 21 sec 5.3.1)
+     * Shifts bytes in the last three rows (NIST Cipher.AES specification pg. 17 sec 5.1.2/pg. 21 sec 5.3.1)
      * @params boolean inverse to indicate the direction of the shift
      */
     public static void shiftRows(boolean inverse) {
@@ -316,7 +317,7 @@ public class AES {
     }
 
     /*
-     * ref. NIST AES specification pg. 18 sec 5.1.3
+     * ref. NIST Cipher.AES specification pg. 18 sec 5.1.3
      * Note: The column mixing operation assures the plaintext is sufficiently diffused
      */
     public static void mixColumns(boolean inverse) {
@@ -333,7 +334,7 @@ public class AES {
     }
 
     /*
-     * Performs the column mixing operations via Galois multiplication (ref. NIST AES sepcification eq 5.6 pg. 18/eq 5.10 pg. 23)
+     * Performs the column mixing operations via Galois multiplication (ref. NIST Cipher.AES sepcification eq 5.6 pg. 18/eq 5.10 pg. 23)
      * @params 32 bit word representing column of the state, boolean indicating which coefficients should be used
      * @return 32 bit word, the product of the multiplication operations
      */
@@ -370,7 +371,7 @@ public class AES {
                 a = (a <<1) ^ 0x11B;
             else
                 a <<= 1;
-            b >>= 1;
+            b >>>= 1;
         }
         return res;
     }
@@ -412,7 +413,7 @@ public class AES {
 
     /*
      * The Key Expansion method, creates the round keys
-     * ref. NIST AES specification pg. 20 fig. 11
+     * ref. NIST Cipher.AES specification pg. 20 fig. 11
      */
     public static void keyExpansion() {
         int i = keySize;

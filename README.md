@@ -1,11 +1,11 @@
 # Java AES
 
-Java AES is an implementation of the AES (Rijndael) cipher. The suite of methods and ultimate cipher function were tested with NIST example vectors to prove compliance with NIST specification (CipherTests.java). 
+This repository is home to an implementation of the AES (Rijndael) cipher in Java. The suite of methods and ultimate cipher function were tested with NIST example vectors to prove compliance with NIST specification (CipherTests.java). 
 
 ## Usage
 
 ```bash
-java AES -k <keyfile> -o <output file> -f <input file> -d <optional: decryption> 
+java cipher.AES -k <keyfile> -o <output file> -f <input file> -d <optional: decryption> 
 ```
 
 ## Contributing

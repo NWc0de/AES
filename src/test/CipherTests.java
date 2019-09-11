@@ -1,9 +1,11 @@
 /**
  * Author: Spencer Little
  * Date: 08/29/2019
- * A set of unit tests for the various functions of the AES cipher
+ * A set of unit tests for the various functions of the Cipher.AES cipher
  */
+package test;
 
+import cipher.AES;
 import org.junit.Test;
 import org.junit.Assert;
 
@@ -35,7 +37,7 @@ public class CipherTests {
         int[] resultWord = {77, 126, 189, 248};
         int[] initWordTwo = {212, 191, 93, 48}; // source http://www.angelfire.com/biz7/atleast/mix_columns.pdf
         int[] resultWordTwo = {4, 102, 129, 229};
-        int[] initWordThree = {242, 10, 34, 92}; // source Wikipedia AES Mix Columns page
+        int[] initWordThree = {242, 10, 34, 92}; // source Wikipedia Cipher.AES Mix Columns page
         int[] resultWordThree = {159, 220, 88, 157};
         int[] initWordFour = {219, 19, 83, 69};
         int[] resultWordFour = {142, 77, 161, 188};
@@ -60,7 +62,7 @@ public class CipherTests {
 
     @Test
     public void testRoundConstant() {
-        int[] initCon = {0x01, 0, 0, 0}; // Examples lifted from NIST AES specification Appendix A pg. 27
+        int[] initCon = {0x01, 0, 0, 0}; // Examples lifted from NIST Cipher.AES specification Appendix A pg. 27
         int[] rConAtTwo = {0x02, 0, 0, 0};
         int[] rConAtThree = {0x04, 0, 0, 0};
         int[] rConAtFour = {0x08, 0, 0, 0};
@@ -87,7 +89,7 @@ public class CipherTests {
 
     @Test
     public void testKeyExpansion() {
-        int[][] initKey = { // Values lifted from example provided in AES Specification Appendix A pg. 27
+        int[][] initKey = { // Values lifted from example provided in Cipher.AES Specification Appendix A pg. 27
                 {0x2b, 0x7e, 0x15, 0x16},
                 {0x28, 0xae, 0xd2, 0xa6},
                 {0xab, 0xf7, 0x15, 0x88},
@@ -170,7 +172,7 @@ public class CipherTests {
 
     @Test
     public void testCipherEncryption() {
-        int[][] initKey = { // Values lifted from example provided in AES Specification Appendix B pg. 33
+        int[][] initKey = { // Values lifted from example provided in Cipher.AES Specification Appendix B pg. 33
                 {0x2b, 0x7e, 0x15, 0x16},
                 {0x28, 0xae, 0xd2, 0xa6},
                 {0xab, 0xf7, 0x15, 0x88},
@@ -205,16 +207,16 @@ public class CipherTests {
 
     @Test
     public void testCipherDecryption() {
-        int[][] initKey = { // Values lifted from example provided in AES Specification Appendix B pg. 33
-                {153, 10, 39, 222},
-                {156, 180, 77, 119},
-                {28, 109, 178, 247},
-                {117, 163, 211, 139}};
+        int[][] initKey = {
+                {0x2b, 0x7e, 0x15, 0x16},
+                {0x28, 0xae, 0xd2, 0xa6},
+                {0xab, 0xf7, 0x15, 0x88},
+                {0x09, 0xcf, 0x4f, 0x3c}};
         int[][] initState = {
-                {16, 16, 16, 16},
-                {16, 16, 16, 16},
-                {16, 16, 16, 16},
-                {16, 16, 16, 16}};
+                {0x39, 0x02, 0xdc, 0x19},
+                {0x25, 0xdc, 0x11, 0x6a},
+                {0x84, 0x09, 0x85, 0x0b},
+                {0x1d, 0xfb, 0x97, 0x32}};
 
         AES.keySize = 4;
         AES.roundKeys = new int[4][44];

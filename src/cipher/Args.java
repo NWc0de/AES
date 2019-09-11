@@ -3,6 +3,7 @@
  * Date: 08/29/19
  * A class to specify and parse cli arguments for the Main class
  */
+package cipher;
 
 import com.beust.jcommander.Parameter;
 
@@ -23,7 +24,7 @@ public class Args {
      * Displays a help message specifying accepted and required cli arguments
      */
     public static void showHelp() {
-        String help = "Usage: \njava AES -f|-filepath <path to file to be encrypted> " +
+        String help = "Usage: \njava Cipher.AES -f|-filepath <path to file to be encrypted> " +
                 "-o|-output <filename for output> " +
                 "-k|key <path to keyfile or plaintext key> " +
                 "-d|decrypt";
