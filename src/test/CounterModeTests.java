@@ -30,13 +30,13 @@ public class CounterModeTests {
         AESCTR crypt = new AESCTR(initialData, initKey, deepCopy(initCount)); // deepCopy to avoid mutability issues
         byte[] encrypted = crypt.counterModeCipher();
 
-        crypt.setState(encrypted, initKey, deepCopy(initCount));
+        crypt.setInternalState(encrypted, initKey, deepCopy(initCount));
         byte[] decrypted = crypt.counterModeCipher();
 
-        crypt.setState(initialDataOne, initKeyOne, deepCopy(initCount));
+        crypt.setInternalState(initialDataOne, initKeyOne, deepCopy(initCount));
         byte[] encryptedOne = crypt.counterModeCipher();
 
-        crypt.setState(encryptedOne, initKeyOne, deepCopy(initCount));
+        crypt.setInternalState(encryptedOne, initKeyOne, deepCopy(initCount));
         byte[] decryptedOne = crypt.counterModeCipher();
 
         Assert.assertArrayEquals(decrypted, initialData);

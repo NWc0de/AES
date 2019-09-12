@@ -13,18 +13,17 @@ import com.beust.jcommander.ParameterException;
 
 public class AES {
 
-    public int[][] stateArray; // The state (two dimensional array containing 128 bit block of input data)
-    public Args cliArgs;
+    public int[][] stateArray = new int[4][4]; // The state (two dimensional array containing 128 bit block of input data)
+    private Args cliArgs;
     public int[][] roundKeys;
-    public boolean isFirstBlockWritten;
     public int keySize; // 4, 6, 8 depending on number of 32 bit words in the initial key
-    public int[] roundCon = {0x01, 0, 0, 0}; // Initial value of the round constant used for key expansion
-    public int toPad;
-    public FileInputStream fileInput;
-    public FileOutputStream fileOutput;
-    public int bytesToCipher;
+    private int[] roundCon = {0x01, 0, 0, 0}; // Initial value of the round constant used for key expansion
+    private int toPad;
+    private FileInputStream fileInput;
+    private FileOutputStream fileOutput;
+    private int bytesToCipher;
 
-    public static final int[][] sbox = {
+    private final int[][] sbox = {
             {0x63, 0x7c, 0x77, 0x7b, 0xf2, 0x6b, 0x6f, 0xc5, 0x30, 0x01, 0x67, 0x2b, 0xfe, 0xd7, 0xab, 0x76},
             {0xca, 0x82, 0xc9, 0x7d, 0xfa, 0x59, 0x47, 0xf0, 0xad, 0xd4, 0xa2, 0xaf, 0x9c, 0xa4, 0x72, 0xc0},
             {0xb7, 0xfd, 0x93, 0x26, 0x36, 0x3f, 0xf7, 0xcc, 0x34, 0xa5, 0xe5, 0xf1, 0x71, 0xd8, 0x31, 0x15},
@@ -42,7 +41,7 @@ public class AES {
             {0xe1, 0xf8, 0x98, 0x11, 0x69, 0xd9, 0x8e, 0x94, 0x9b, 0x1e, 0x87, 0xe9, 0xce, 0x55, 0x28, 0xdf},
             {0x8c, 0xa1, 0x89, 0x0d, 0xbf, 0xe6, 0x42, 0x68, 0x41, 0x99, 0x2d, 0x0f, 0xb0, 0x54, 0xbb, 0x16}};
 
-    public static final int[][] invSbox = {
+    private final int[][] invSbox = {
             {0x52, 0x09, 0x6a, 0xd5, 0x30, 0x36, 0xa5, 0x38, 0xbf, 0x40, 0xa3, 0x9e, 0x81, 0xf3, 0xd7, 0xfb},
             {0x7c, 0xe3, 0x39, 0x82, 0x9b, 0x2f, 0xff, 0x87, 0x34, 0x8e, 0x43, 0x44, 0xc4, 0xde, 0xe9, 0xcb},
             {0x54, 0x7b, 0x94, 0x32, 0xa6, 0xc2, 0x23, 0x3d, 0xee, 0x4c, 0x95, 0x0b, 0x42, 0xfa, 0xc3, 0x4e},
@@ -66,8 +65,8 @@ public class AES {
      */
     public static void main(String[] argv) {
         AES crypt = new AES();
-        crypt.stateArray = new int[4][4];
-        crypt.isFirstBlockWritten = false;
+        System.out.println("File encryption in ECB mode is intended for testing and demonstration purposes only." +
+                           " ECB is not a secure mode of operation and should not be relied upon for confidentiality.");
         crypt.cliArgs = new Args();
         try {
             JCommander.newBuilder().addObject(crypt.cliArgs).build().parse(argv);
@@ -116,6 +115,33 @@ public class AES {
             System.out.println("Error writing final block to file.");
             iox.printStackTrace();
         }
+    }
+
+    public void setState(int[][] inputState) {
+        boolean isInputLengthValid = inputState.length == 4;
+        for (int i = 0; i < 4; i++) {
+            isInputLengthValid = isInputLengthValid && (inputState[i].length == 4);
+        }
+        if (!isInputLengthValid) {
+            throw new IllegalArgumentException("State must be 16 bytes (4x4 array)");
+        }
+        this.stateArray = inputState;
+    }
+
+    public void setKey(int[] keyBytes) {
+        boolean isKeyLengthValid = keyBytes.length == 16 || keyBytes.length == 24 || keyBytes.length == 32;
+        if (!isKeyLengthValid) {
+            throw new IllegalArgumentException("Key length must be 128, 192, or 256 bits.");
+        }
+        this.roundCon = new int[]{0x01, 0, 0, 0};
+        this.keySize = keyBytes.length/4;
+        this.roundKeys = new int[4][4 * ((keySize)+7)];
+        for (int i = 0; i < keySize; i++) {
+            for (int j = 0; j < 4; j++) {
+                this.roundKeys[j][i] = keyBytes[j + (i*4)];
+            }
+        }
+        this.keyExpansion();
     }
 
     /*
