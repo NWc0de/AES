@@ -53,26 +53,18 @@ public class AESCTR extends AES {
 
         this.stateArray = counterBlock;
         this.cipher();
-        this.writeBlockToByteArray(output, xorBlocks(stateAsBytes(), block), offset);
+        this.writeBlockToByteArray(output, xorBlockWithState(block), offset);
         this.incrementCB();
     }
 
-    private byte[] xorBlocks(byte[] blockOne, byte[] blockTwo) {
+    private byte[] xorBlockWithState(byte[] block) {
         byte[] out = new byte[16];
-        for (int i = 0; i < 16; i++) {
-            out[i] = (byte) (blockOne[i] ^ blockTwo[i]);
-        }
-        return out;
-    }
-
-    private byte[] stateAsBytes() {
-        byte[] state = new byte[16];
         for (int i = 0; i < 4; i++) {
             for (int j = 0; j < 4; j++) {
-                state[j + (i*4)] = (byte) stateArray[j][i];
+                out[j + (i*4)] = (byte) (stateArray[j][i] ^ block[j + (i*4)]);
             }
         }
-        return state;
+        return out;
     }
 
     private void writeBlockToByteArray(byte[] output, byte[] block, int offset) {
