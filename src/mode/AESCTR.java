@@ -1,3 +1,8 @@
+/**
+ * Author: Spencer Little
+ * Date: 09/12/2019
+ * Counter mode for the AES cipher (ref. https://csrc.nist.gov/publications/detail/sp/800-38d/final)
+ */
 package mode;
 
 import cipher.AES;
@@ -7,11 +12,12 @@ public class AESCTR extends AES {
     private byte[] inputBlocks;
 
     public AESCTR(byte[] inputBlocks, int[] keyBytes, int[][] counterBlock) {
+        super();
         setInternalState(inputBlocks, keyBytes, counterBlock);
     }
 
     /*
-     * Sets the round keys, counter block, and input dat
+     * Sets the round keys, counter block, and input data
      */
     public void setInternalState(byte[] inputBlocks, int[] keyBytes, int[][] counterBlock) {
         super.setState(counterBlock);
@@ -24,9 +30,6 @@ public class AESCTR extends AES {
         this.stateArray = counterBlock;
     }
 
-    /*
-     * Assumes input is even block length.
-     */
     public byte[] counterModeCipher() {
         byte[] cipherBlocks = new byte[inputBlocks.length];
         for (int i = 0; i < (inputBlocks.length/16); i++) {
@@ -43,7 +46,7 @@ public class AESCTR extends AES {
         System.arraycopy(input, offset*16, block, 0, 16);
         this.cipher();
         System.arraycopy(xorBlockWithState(block), 0, output, offset*16, 16);
-        this.incrementCB();
+        this.incrementState();
     }
 
     private byte[] xorBlockWithState(byte[] block) {
@@ -56,7 +59,11 @@ public class AESCTR extends AES {
         return out;
     }
 
-    private void incrementCB() {
+    /*
+     * Increment counter block (state) by interpreting last four bytes as long
+     * ref. NIST SP 800-38D pg. 11 sec. 6.2
+     */
+    private void incrementState() {
         long asLong = 0;
         for (int i = 3; i >= 0; i--) { // convert final column word into long
             asLong += (long) (stateArray[3][i] << (8 * (3-i)));
