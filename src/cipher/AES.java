@@ -108,7 +108,7 @@ public class AES {
 
     public void counterModeDecrypt() {
         byte[] fileBytes = readDataFile();
-        AESCTR counterCrypt = new AESCTR(fileBytes, initKeyBytes, initializationVector); // mutability?
+        AESCTR counterCrypt = new AESCTR(fileBytes, initKeyBytes, initializationVector);
         fileBytes = counterCrypt.counterModeCipher();
         fileBytes = AESCTR.removePadding(fileBytes);
         writeByteArrayToFile(fileBytes);
@@ -117,7 +117,7 @@ public class AES {
     public void counterModeEncrypt() {
         byte[] fileBytes = readDataFile();
         fileBytes = AESCTR.padByteArray(fileBytes);
-        AESCTR counterCrypt = new AESCTR(fileBytes, initKeyBytes, initializationVector); // mutability?
+        AESCTR counterCrypt = new AESCTR(fileBytes, initKeyBytes, initializationVector);
         fileBytes = counterCrypt.counterModeCipher();
         writeByteArrayToFile(fileBytes);
     }
@@ -375,7 +375,7 @@ public class AES {
             System.exit(1);
         }
         if (keySize > 8 || keySize <= 2 || keySize%2==1) {
-            System.out.println("Error during parsing of key. Please 128, 192, or 256 bit keys.");
+            System.out.println("Invalid key length. Acceptable lengths are: 128, 192, or 256 bits.");
             System.exit(1);
         }
     }
@@ -385,6 +385,7 @@ public class AES {
             FileInputStream initVectorInput = new FileInputStream(cliArgs.initVectorFilePath);
             if (initVectorInput.available() != 16) {
                 System.out.println("Invalid byte length of IV file. Initialization vector file must contain exactly 16 bytes.");
+                System.exit(1);
             }
             int i = 0, j = 0;
             while ((i*4) < 16) {
