@@ -20,14 +20,27 @@ public class Args {
     @Parameter(names = { "-d", "-decrypt" }, description = "Decryption mode.")
     public boolean decrypt = false;
 
+    @Parameter(names = { "-v", "-init-vector" }, description = "Path to initialization vector file.", required = true)
+    public String initVectorFilePath;
+
+    @Parameter(names = { "-CTR", "--counter-mode" }, description = "Counter (CTR) mode")
+    public boolean counterMode = false;
+
+    @Parameter(names = { "-h", "--help" }, description = "Display help message")
+    public boolean help = false;
+
     /*
      * Displays a help message specifying accepted and required cli arguments
      */
     public static void showHelp() {
-        String help = "Usage: \njava Cipher.AES -f|-filepath <path to file to be encrypted> " +
-                "-o|-output <filename for output> " +
-                "-k|key <path to keyfile or plaintext key> " +
-                "-d|decrypt";
+        String help = "Options: \njava AES \n-f|-filepath <path to file to be encrypted> " +
+                "\n-o|-output <filename for output> " +
+                "\n-k|-key <path to keyfile or plaintext key> " +
+                "\n-v|-init-vector <path to initialization vector file>" +
+                "\n-CTR|--counter-mode counter mode" +
+                "\n-d|-decrypt specifes decryption mode" +
+                "\n-h|--help displays this help message" +
+                "\nNote: Default mode is CBC. Initialization vector files must provide exactly 16 bytes.";
         System.out.println(help);
     }
 }

@@ -1,7 +1,7 @@
 /**
  * Author: Spencer Little
  * Date: 08/29/2019
- * A set of unit tests for the various functions of the Cipher.AES cipher
+ * A set of unit tests for the various functions of the AES cipher
  */
 package test;
 
@@ -39,7 +39,7 @@ public class CipherTests {
         int[] resultWord = {77, 126, 189, 248};
         int[] initWordTwo = {212, 191, 93, 48}; // source http://www.angelfire.com/biz7/atleast/mix_columns.pdf
         int[] resultWordTwo = {4, 102, 129, 229};
-        int[] initWordThree = {242, 10, 34, 92}; // source Wikipedia Cipher.AES Mix Columns page
+        int[] initWordThree = {242, 10, 34, 92}; // source Wikipedia AES Mix Columns page
         int[] resultWordThree = {159, 220, 88, 157};
         int[] initWordFour = {219, 19, 83, 69};
         int[] resultWordFour = {142, 77, 161, 188};
@@ -65,7 +65,7 @@ public class CipherTests {
     @Test
     public void testRoundConstant() {
         AES crypt = new AES();
-        int[] initCon = {0x01, 0, 0, 0}; // Examples lifted from NIST Cipher.AES specification Appendix A pg. 27
+        int[] initCon = {0x01, 0, 0, 0}; // Examples lifted from NIST AES specification Appendix A pg. 27
         int[] rConAtTwo = {0x02, 0, 0, 0};
         int[] rConAtThree = {0x04, 0, 0, 0};
         int[] rConAtFour = {0x08, 0, 0, 0};
@@ -94,7 +94,7 @@ public class CipherTests {
         AES cryptOne = new AES();
         AES cryptTwo = new AES();
         AES cryptThree = new AES();
-        int[][] initKey = { // Values lifted from example provided in Cipher.AES Specification Appendix A pg. 27
+        int[][] initKey = { // Values lifted from example provided in AES Specification Appendix A pg. 27
                 {0x2b, 0x7e, 0x15, 0x16},
                 {0x28, 0xae, 0xd2, 0xa6},
                 {0xab, 0xf7, 0x15, 0x88},
@@ -174,7 +174,7 @@ public class CipherTests {
     @Test
     public void testCipherEncryption() {
         AES crypt = new AES();
-        int[][] initKey = { // Values lifted from example provided in Cipher.AES Specification Appendix B pg. 33
+        int[][] initKey = { // Values lifted from example provided in AES Specification Appendix B pg. 33
                 {0x2b, 0x7e, 0x15, 0x16},
                 {0x28, 0xae, 0xd2, 0xa6},
                 {0xab, 0xf7, 0x15, 0x88},

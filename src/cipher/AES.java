@@ -1,7 +1,7 @@
 /**
  * Author: Spencer Little (mrlittle@uw.edu)
  * Date: 08/28/18
- * An implementation of the Cipher.AES (Rijndael) cipher
+ * An implementation of the AES (Rijndael) cipher
  * ref. https://www.nist.gov/publications/advanced-encryption-standard-aes
  */
 package cipher;
@@ -10,14 +10,17 @@ import java.io.*;
 
 import com.beust.jcommander.JCommander;
 import com.beust.jcommander.ParameterException;
+import mode.AESCTR;
 
 public class AES {
 
     public int[][] stateArray = new int[4][4]; // The state (two dimensional array containing 128 bit block of input data)
     private Args cliArgs;
+    private int[] initKeyBytes;
     public int[][] roundKeys;
     public int keySize; // 4, 6, 8 depending on number of 32 bit words in the initial key
     private int[] roundCon = {0x01, 0, 0, 0}; // Initial value of the round constant used for key expansion
+    private int[][] initializationVector = new int[4][4];
     private int toPad;
     private FileInputStream fileInput;
     private FileOutputStream fileOutput;
@@ -65,34 +68,70 @@ public class AES {
      */
     public static void main(String[] argv) {
         AES crypt = new AES();
-        System.out.println("File encryption in ECB mode is intended for testing and demonstration purposes only." +
-                           " ECB is not a secure mode of operation and should not be relied upon for confidentiality.");
         crypt.cliArgs = new Args();
         try {
             JCommander.newBuilder().addObject(crypt.cliArgs).build().parse(argv);
         } catch (ParameterException prx) {
-            System.out.println("A filepath, output filename, and keyfile path must be specified.");
+            System.out.println("Path to the plaintext, path to the initialization vector, output filename, and key file path must be specified.");
             Args.showHelp();
             System.exit(1);
         }
+        if (crypt.cliArgs.help) {
+            Args.showHelp();
+            System.exit(1);
+        }
+
         crypt.initializeFileOperators();
         crypt.readKeyFile();
         crypt.keyExpansion();
+        crypt.readInitVectorFile();
 
-        if (crypt.cliArgs.decrypt) {
-            crypt.decrypt();
+
+        if (!crypt.cliArgs.counterMode && crypt.cliArgs.decrypt) {
+            crypt.cipherBlockChainDecrypt();
+        } else if (!crypt.cliArgs.counterMode){
+            crypt.cipherBlockChainEncrypt();
+        } else if (crypt.cliArgs.decrypt) {
+            crypt.counterModeDecrypt();
         } else {
-            crypt.encrypt();
+            crypt.counterModeEncrypt();
+        }
+
+        try {
+            crypt.closeFileOperators();
+        } catch (IOException iox) {
+            System.out.println("Error closing file operators.");
+            iox.printStackTrace();
+            System.exit(1);
         }
     }
 
-    public void encrypt() {
-        while(readDataFile()) {
+    public void counterModeDecrypt() {
+        byte[] fileBytes = readDataFile();
+        AESCTR counterCrypt = new AESCTR(fileBytes, initKeyBytes, initializationVector); // mutability?
+        fileBytes = counterCrypt.counterModeCipher();
+        fileBytes = AESCTR.removePadding(fileBytes);
+        writeByteArrayToFile(fileBytes);
+    }
+
+    public void counterModeEncrypt() {
+        byte[] fileBytes = readDataFile();
+        fileBytes = AESCTR.padByteArray(fileBytes);
+        AESCTR counterCrypt = new AESCTR(fileBytes, initKeyBytes, initializationVector); // mutability?
+        fileBytes = counterCrypt.counterModeCipher();
+        writeByteArrayToFile(fileBytes);
+    }
+
+    public void cipherBlockChainEncrypt() {
+        while(readBlockOfDataFile()) {
+            xorVectorWithState(); // xor the IV, or the previous ciphertext block with the state
             cipher();
             writeStateToFile();
+            initializationVector = deepCopy(stateArray);
         }
         try {
             applyPadding();
+            xorVectorWithState();
             cipher();
             writeStateToFile();
             closeFileOperators();
@@ -102,13 +141,17 @@ public class AES {
         }
     }
 
-    public void decrypt() {
-        while(readDataFile()) {
+    public void cipherBlockChainDecrypt() {
+        while(readBlockOfDataFile()) {
+            int[][] temp = deepCopy(stateArray);
             invCipher();
+            xorVectorWithState();
             writeStateToFile();
+            initializationVector = deepCopy(temp);
         }
         try {
             invCipher();
+            xorVectorWithState();
             writeFinalBlock();
             closeFileOperators();
         } catch (IOException iox) {
@@ -152,7 +195,7 @@ public class AES {
 
     /*
      * Performs the cipher operations on the state
-     * ref. NIST Cipher.AES specification pg. 15 fig 5
+     * ref. NIST AES specification pg. 15 fig 5
      */
     public void cipher() {
         int rounds = keySize + 6;
@@ -170,7 +213,7 @@ public class AES {
 
     /*
      * Performs inverse cipher operations on the state
-     * ref. NIST Cipher.AES specification pg.21 fig 12
+     * ref. NIST AES specification pg.21 fig 12
      */
     public void invCipher() {
         int rounds = keySize + 6;
@@ -206,7 +249,7 @@ public class AES {
     /*
      * Reads 128 bits from the specified filepath into the state array per NIST specification (ref. pg.9 sec 3.4)
      */
-    public boolean readDataFile() {
+    public boolean readBlockOfDataFile() {
         boolean isBlockAvailable = true;
         try {
             if (bytesToCipher >= 16) {
@@ -227,6 +270,32 @@ public class AES {
             System.exit(1);
         }
         return isBlockAvailable;
+    }
+
+    /*
+     * Reads entire file and returns as byte array
+     */
+    private byte[] readDataFile() {
+        byte[] fileBytes;
+        try {
+            fileBytes = new byte[fileInput.available()];
+            fileInput.read(fileBytes);
+        } catch (IOException iox) {
+            fileBytes = null;
+            System.out.println("Error occurred while reading file.");
+            iox.printStackTrace();
+            System.exit(1);
+        }
+        return fileBytes;
+    }
+
+    private void writeByteArrayToFile(byte[] byteArray) {
+        try {
+            fileOutput.write(byteArray);
+        } catch (IOException iox) {
+            System.out.println("Error writing data to file.");
+            iox.printStackTrace();
+        }
     }
 
     /*
@@ -290,11 +359,13 @@ public class AES {
         try {
             FileInputStream keyFileInput = new FileInputStream(cliArgs.keyFilePath);
             keySize = keyFileInput.available()/4; // determine the number of 32 bit words in the key
+            initKeyBytes = new int[4 * keySize];
             roundKeys = new int[4][4 * ((keySize)+7)]; // the number of 32 bit words in the expanded key
             int i = 0;                                  // is equal (Nr + 1)*Nb where Nr = the number of rounds
             do {                                       // (which is equal to (Nk + 6), Nb = columns in the state array
                 for (int j = 0; j < 4; j++) {         // and Nk = number of 32 bit words in the key
                     roundKeys[j][i] = keyFileInput.read();
+                    initKeyBytes[j + (4*i)] = roundKeys[j][i]; // maintain a copy of initial key block for CTR mode
                 }
                 i++;
             } while (i+1 <= keySize);
@@ -305,6 +376,25 @@ public class AES {
         }
         if (keySize > 8 || keySize <= 2 || keySize%2==1) {
             System.out.println("Error during parsing of key. Please 128, 192, or 256 bit keys.");
+            System.exit(1);
+        }
+    }
+
+    public void readInitVectorFile() {
+        try {
+            FileInputStream initVectorInput = new FileInputStream(cliArgs.initVectorFilePath);
+            if (initVectorInput.available() != 16) {
+                System.out.println("Invalid byte length of IV file. Initialization vector file must contain exactly 16 bytes.");
+            }
+            int i = 0, j = 0;
+            while ((i*4) < 16) {
+                initializationVector[j][i] = initVectorInput.read();
+                j++;
+                if (j == 4) {i++; j = 0;}
+            }
+        } catch (IOException iox) {
+            System.out.println("Error occurred while reading initialization vector file");
+            iox.printStackTrace();
             System.exit(1);
         }
     }
@@ -329,7 +419,7 @@ public class AES {
     }
 
     /*
-     * Shifts bytes in the last three rows (NIST Cipher.AES specification pg. 17 sec 5.1.2/pg. 21 sec 5.3.1)
+     * Shifts bytes in the last three rows (NIST AES specification pg. 17 sec 5.1.2/pg. 21 sec 5.3.1)
      * @params boolean inverse to indicate the direction of the shift
      */
     public void shiftRows(boolean inverse) {
@@ -344,7 +434,7 @@ public class AES {
     }
 
     /*
-     * ref. NIST Cipher.AES specification pg. 18 sec 5.1.3
+     * ref. NIST AES specification pg. 18 sec 5.1.3
      * Note: The column mixing operation assures the plaintext is sufficiently diffused
      */
     public void mixColumns(boolean inverse) {
@@ -361,7 +451,7 @@ public class AES {
     }
 
     /*
-     * Performs the column mixing operations via Galois multiplication (ref. NIST Cipher.AES sepcification eq 5.6 pg. 18/eq 5.10 pg. 23)
+     * Performs the column mixing operations via Galois multiplication (ref. NIST AES sepcification eq 5.6 pg. 18/eq 5.10 pg. 23)
      * @params 32 bit word representing column of the state, boolean indicating which coefficients should be used
      * @return 32 bit word, the product of the multiplication operations
      */
@@ -403,6 +493,22 @@ public class AES {
         return res;
     }
 
+    private void xorVectorWithState() {
+        for (int i = 0; i < 4; i++) {
+            for (int j = 0; j < 4; j++) {
+                stateArray[i][j] ^= initializationVector[i][j];
+            }
+        }
+    }
+
+    private int[][] deepCopy(int[][] original) {
+        int[][] result = new int[original.length][original[0].length]; // assumes square dimensions
+        for (int i = 0; i < original.length; i++) {
+            System.arraycopy(original[i], 0, result[i], 0, original[i].length);
+        }
+        return result;
+    }
+
     /*
     ------------------------------------------
                Key Expansion Methods
@@ -440,7 +546,7 @@ public class AES {
 
     /*
      * The Key Expansion method, creates the round keys
-     * ref. NIST Cipher.AES specification pg. 20 fig. 11
+     * ref. NIST AES specification pg. 20 fig. 11
      */
     public void keyExpansion() {
         int i = keySize;

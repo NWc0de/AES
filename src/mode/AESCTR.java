@@ -30,6 +30,12 @@ public class AESCTR extends AES {
         this.stateArray = counterBlock;
     }
 
+    /*
+    ------------------------------------------
+                    Cipher Methods
+    ------------------------------------------
+     */
+
     public byte[] counterModeCipher() {
         byte[] cipherBlocks = new byte[inputBlocks.length];
         for (int i = 0; i < (inputBlocks.length/16); i++) {
@@ -72,5 +78,33 @@ public class AESCTR extends AES {
         for (int i = 3; i >= 0; i--) { // decompose long into bytes
             stateArray[3][i] =  (int) (asLong & (0xff << (8 * (3-i)))) >>> (8* (3-i));
         }
+    }
+
+    /*
+    ------------------------------------------
+                    I/O Methods
+    ------------------------------------------
+     */
+
+    /*
+     * Apply PKCS#7 padding scheme
+     */
+    public static byte[] padByteArray(byte[] byteArray) {
+        int toPad = byteArray.length % 16 == 0 ? 16 : byteArray.length % 16;
+        int temp = 0;
+        byte[] padded = new byte[byteArray.length + toPad];
+        System.arraycopy(byteArray, 0, padded, 0, byteArray.length);
+        while (temp < toPad) {
+            padded[padded.length - temp - 1] = (byte) toPad;
+            temp++;
+        }
+        return padded;
+    }
+
+    public static byte[] removePadding(byte[] byteArray) {
+        int toRemove = byteArray[byteArray.length -1];
+        byte[] newBytes = new byte[byteArray.length - toRemove];
+        System.arraycopy(byteArray, 0, newBytes, 0, byteArray.length - toRemove);
+        return newBytes;
     }
 }
