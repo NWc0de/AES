@@ -5,7 +5,7 @@ This repository is home to an implementation of the AES (Rijndael) cipher in Jav
 ## Usage
 
 ```bash
-java cipher.AES -k <keyfile> -o <output file> -f <input file> -d <optional: decryption> 
+java AES -k <keyfile> -o <output file> -f <input file> -d <optional: decryption> 
 ```
 
 ## Contributing
