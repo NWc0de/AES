@@ -2,8 +2,9 @@
 
 This repository is home to an implementation of the AES (Rijndael) cipher in Java. 
 The suite of methods and ultimate cipher function were tested with example vectors 
-provided by [NIST FISP - 197](https://www.nist.gov/publications/advanced-encryption-standard-aes) 
-to prove compliance with NIST specification (CipherTests.java).    
+provided by [NIST FISP-197](https://www.nist.gov/publications/advanced-encryption-standard-aes) 
+ and [NIST SP 800-38A](https://nvlpubs.nist.gov/nistpubs/Legacy/SP/nistspecialpublication800-38a.pdf)
+ to prove compliance with NIST specification (CipherTests.java and CounterModeTests.java).    
 
 ## Usage
 
@@ -19,11 +20,12 @@ dd if=/dev/urandom of=initvector bs=4 count=4
 ```
 
 ## Initial Counter Blocks
-**Note:** In CTR mode the IV corresponds to the initial counter block (ICB).
-Any mode of generation is acceptable for ICBs however subsequent ICBs should 
-be unique. A single ICB can be used for up to 2^m blocks of plaintext, where m is the
-number of bits used in the standard incrementation function. In this implementation m=32 
+Any mode of generation is acceptable for ICBs however the ICB should 
+be unique for each message/file. A single ICB can be used for up to 2^m blocks of plaintext, where m is the
+number of bits used to form an integer in the standard incrementation function. In this implementation m=32 
 so a new ICB must be generated for every 64 gigabytes of plaintext that is processed.
+
+**Note:** In CTR mode the IV corresponds to the initial counter block (ICB).
 
 ## Initialization Vectors
 In CBC mode the initialization vector (IV) does not need to be secret. It may be transmitted

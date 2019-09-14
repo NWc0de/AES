@@ -174,7 +174,7 @@ public class CipherTests {
     @Test
     public void testCipherEncryption() {
         AES crypt = new AES();
-        int[][] initKey = { // Values lifted from example provided in AES Specification Appendix B pg. 33
+        int[][] initKey = { // Values lifted from example provided in NIST AES Specification Appendix B pg. 33
                 {0x2b, 0x7e, 0x15, 0x16},
                 {0x28, 0xae, 0xd2, 0xa6},
                 {0xab, 0xf7, 0x15, 0x88},
@@ -234,6 +234,72 @@ public class CipherTests {
         crypt.invCipher();
 
         Assert.assertArrayEquals(initState, crypt.stateArray);
+    }
+
+    /*
+     * Test vector lifted from NIST SP 800-38A (https://nvlpubs.nist.gov/nistpubs/Legacy/SP/nistspecialpublication800-38a.pdf)
+     */
+    @Test
+    public void testCBCModeCompliance() {
+        AES crypt = new AES();
+        int[][] initKey = {
+                {0x2b, 0x7e, 0x15, 0x16},
+                {0x28, 0xae, 0xd2, 0xa6},
+                {0xab, 0xf7, 0x15, 0x88},
+                {0x09, 0xcf, 0x4f, 0x3c}};
+        int[][] iv = {
+                {0x00, 0x01, 0x02, 0x03},
+                {0x04, 0x05, 0x06, 0x07},
+                {0x08, 0x09, 0x0a, 0x0b},
+                {0x0c, 0x0d, 0x0e, 0x0f}};
+        int[][] plainTextOne = {
+                {0x6b, 0xc1, 0xbe, 0xe2},
+                {0x2e, 0x40, 0x9f, 0x96},
+                {0xe9, 0x3d, 0x7e, 0x11},
+                {0x73, 0x93, 0x17, 0x2a}};
+        int[][] outputOne = {
+                {0x76, 0x49, 0xab, 0xac},
+                {0x81, 0x19, 0xb2, 0x46},
+                {0xce, 0xe9, 0x8e, 0x9b},
+                {0x12, 0xe9, 0x19, 0x7d}};
+        int[][] plainTextTwo = {
+                {0xae, 0x2d, 0x8a, 0x57},
+                {0x1e, 0x03, 0xac, 0x9c},
+                {0x9e, 0xb7, 0x6f, 0xac},
+                {0x45, 0xaf, 0x8e, 0x51}};
+        int[][] outputTwo = {
+                {0x50, 0x86, 0xcb, 0x9b},
+                {0x50, 0x72, 0x19, 0xee},
+                {0x95, 0xdb, 0x11, 0x3a},
+                {0x91, 0x76, 0x78, 0xb2}};
+
+
+        crypt.keySize = 4;
+        crypt.roundKeys = new int[4][44];
+        crypt.stateArray = rowsToColumns(plainTextOne);
+
+        initKey = rowsToColumns(initKey);
+
+        for (int i = 0; i < 4; i++) {
+            for (int j = 0; j < 4; j++) {
+                crypt.roundKeys[j][i] = initKey[j][i];
+            }
+        }
+        
+        crypt.keyExpansion();
+        crypt.initializationVector = rowsToColumns(iv);
+
+        crypt.xorVectorWithState(); // xor the IV, or the previous ciphertext block with the state
+        crypt.cipher();
+
+        Assert.assertArrayEquals(crypt.stateArray, rowsToColumns(outputOne));
+
+        crypt.initializationVector = crypt.stateArray;
+        crypt.stateArray = rowsToColumns(plainTextTwo);
+        crypt.xorVectorWithState();
+        crypt.cipher();
+
+        Assert.assertArrayEquals(crypt.stateArray, rowsToColumns(outputTwo));
     }
 
     @Test
@@ -315,6 +381,19 @@ public class CipherTests {
             if (j == 4) {i++; j = 0;}
         }
         Assert.assertArrayEquals(stateArray, elevenBytesWritten);
+    }
+
+    /*
+     * Turns the rows of the matrix into the columns
+     */
+    private int[][] rowsToColumns(int[][] inp) {
+        int[][] asWord = new int[4][4];
+        for (int i = 0; i < 4; i++) {
+            for (int j = 0; j < 4; j++) {
+                asWord[j][i] = inp[i][j];
+            }
+        }
+        return asWord;
     }
 
 

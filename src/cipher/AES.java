@@ -20,7 +20,7 @@ public class AES {
     public int[][] roundKeys;
     public int keySize; // 4, 6, 8 depending on number of 32 bit words in the initial key
     private int[] roundCon = {0x01, 0, 0, 0}; // Initial value of the round constant used for key expansion
-    private int[][] initializationVector = new int[4][4];
+    public int[][] initializationVector = new int[4][4];
     private int toPad;
     private FileInputStream fileInput;
     private FileOutputStream fileOutput;
@@ -163,7 +163,7 @@ public class AES {
         }
     }
 
-    public void setState(int[][] inputState) {
+    protected void setState(int[][] inputState) {
         boolean isInputLengthValid = inputState.length == 4;
         for (int i = 0; i < 4; i++) {
             isInputLengthValid = isInputLengthValid && (inputState[i].length == 4);
@@ -174,7 +174,7 @@ public class AES {
         this.stateArray = inputState;
     }
 
-    public void setKey(int[] keyBytes) {
+    protected void setKey(int[] keyBytes) {
         boolean isKeyLengthValid = keyBytes.length == 16 || keyBytes.length == 24 || keyBytes.length == 32;
         if (!isKeyLengthValid) {
             throw new IllegalArgumentException("Key length must be 128, 192, or 256 bits.");
@@ -497,10 +497,10 @@ public class AES {
         return res;
     }
 
-    private void xorVectorWithState() {
+    public void xorVectorWithState() {
         for (int i = 0; i < 4; i++) {
             for (int j = 0; j < 4; j++) {
-                stateArray[i][j] ^= initializationVector[i][j];
+                stateArray[j][i] ^= initializationVector[j][i];
             }
         }
     }
