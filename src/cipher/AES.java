@@ -107,19 +107,22 @@ public class AES {
         System.out.println("Cipher operations successful. Processed " + crypt.fileSize + " bytes.");
     }
 
-    private void counterModeDecrypt() {
-        byte[] fileBytes = readDataFile();
-        AESCTR counterCrypt = new AESCTR(fileBytes, getInitKeyBytes(), initializationVector);
-        fileBytes = counterCrypt.counterModeCipher();
-        fileBytes = AESCTR.removePadding(fileBytes);
-        writeByteArrayToFile(fileBytes);
-    }
-
+    /*
+     * Counter mode ref. NIST SP 800 38a (https://nvlpubs.nist.gov/nistpubs/Legacy/SP/nistspecialpublication800-38a.pdf)
+     */
     private void counterModeEncrypt() {
         byte[] fileBytes = readDataFile();
         fileBytes = AESCTR.padByteArray(fileBytes);
         AESCTR counterCrypt = new AESCTR(fileBytes, getInitKeyBytes(), initializationVector);
         fileBytes = counterCrypt.counterModeCipher();
+        writeByteArrayToFile(fileBytes);
+    }
+
+    private void counterModeDecrypt() {
+        byte[] fileBytes = readDataFile();
+        AESCTR counterCrypt = new AESCTR(fileBytes, getInitKeyBytes(), initializationVector);
+        fileBytes = counterCrypt.counterModeCipher();
+        fileBytes = AESCTR.removePadding(fileBytes);
         writeByteArrayToFile(fileBytes);
     }
 
@@ -209,7 +212,7 @@ public class AES {
         this.initializationVector = initVector;
     }
 
-    public int[][] getInitKeyBytes() {
+    private int[][] getInitKeyBytes() {
         int[][] initKeyBytes = new int[keySize][4];
         for (int i = 0; i < 4; i++) {
             for (int j = 0; j < keySize; j++) {
