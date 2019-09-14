@@ -26,10 +26,10 @@ public class CipherTests {
                 {2,3,0,1}, // shifted left by two bytes
                 {3,0,1,2}}; // shifted left by three bytes
 
-        crypt.stateArray = unShifted;
+        crypt.setState(unShifted);
         crypt.shiftRows(false);
 
-        Assert.assertArrayEquals(crypt.stateArray, shifted);
+        Assert.assertArrayEquals(crypt.getStateArray(), shifted);
     }
 
     @Test
@@ -121,14 +121,10 @@ public class CipherTests {
         int[] roundTen = {0x59, 0x35, 0x80, 0x7a};
         int[] roundTwentyThree = {0x11, 0xf9, 0x15, 0xbc};
         int[] roundFourtyThree = {0xb6, 0x63, 0x0c, 0xa6};
-        cryptOne.keySize = 4;
-        cryptOne.roundKeys = new int[4][44];
-        for (int i = 0; i < 4; i++) {
-            for (int j = 0; j < 4; j++) {
-                cryptOne.roundKeys[i][j] = initKey[j][i];
-            }
-        }
+
+        cryptOne.initializeRoundKeys(initKey);
         cryptOne.keyExpansion();
+
         Assert.assertArrayEquals(roundFour, cryptOne.getRoundKeyWordAt(4));
         Assert.assertArrayEquals(roundTen, cryptOne.getRoundKeyWordAt(10));
         Assert.assertArrayEquals(roundTwentyThree, cryptOne.getRoundKeyWordAt(23));
@@ -139,14 +135,10 @@ public class CipherTests {
         roundTwentyThree = new int[]{0x11, 0x3b, 0x30, 0xe6};
         roundFourtyThree = new int[]{0xad, 0x07, 0xd7, 0x53};
         int[] roundFiftyOne = {0x01, 0x00, 0x22, 0x02};
-        cryptTwo.keySize = 6;
-        cryptTwo.roundKeys = new int[4][52];
-        for (int i = 0; i < 4; i++) {
-            for (int j = 0; j < 6; j++) {
-                cryptTwo.roundKeys[i][j] = initKeyTwo[j][i];
-            }
-        }
+
+        cryptTwo.initializeRoundKeys(initKeyTwo);
         cryptTwo.keyExpansion();
+
         Assert.assertArrayEquals(roundTen, cryptTwo.getRoundKeyWordAt(10));
         Assert.assertArrayEquals(roundTwentyThree, cryptTwo.getRoundKeyWordAt(23));
         Assert.assertArrayEquals(roundFourtyThree, cryptTwo.getRoundKeyWordAt(43));
@@ -157,14 +149,10 @@ public class CipherTests {
         roundFourtyThree = new int[]{0x96, 0x74, 0xee, 0x15};
         roundFiftyOne = new int[]{0x74, 0x01, 0x90, 0x5a};
         int[] roundFiftyNine = {0x70, 0x6c, 0x63, 0x1e};
-        cryptThree.keySize = 8;
-        cryptThree.roundKeys = new int[4][60];
-        for (int i = 0; i < 4; i++) {
-            for (int j = 0; j < 8; j++) {
-                cryptThree.roundKeys[i][j] = initKeyThree[j][i];
-            }
-        }
+
+        cryptThree.initializeRoundKeys(initKeyThree);
         cryptThree.keyExpansion();
+
         Assert.assertArrayEquals(roundTwentyThree, cryptThree.getRoundKeyWordAt(23));
         Assert.assertArrayEquals(roundFourtyThree, cryptThree.getRoundKeyWordAt(43));
         Assert.assertArrayEquals(roundFiftyOne, cryptThree.getRoundKeyWordAt(51));
@@ -191,18 +179,12 @@ public class CipherTests {
                 {0x1d, 0xfb, 0x97, 0x32}};
 
         crypt.keySize = 4;
-        crypt.roundKeys = new int[4][44];
-        crypt.stateArray = new int[4][4];
-        for (int i = 0; i < 4; i++) {
-            for (int j = 0; j < 4; j++) {
-                crypt.roundKeys[i][j] = initKey[j][i];
-                crypt.stateArray[i][j] = initState[i][j];
-            }
-        }
+        crypt.initializeRoundKeys(initKey);
+        crypt.setState(initState);
         crypt.keyExpansion();
         crypt.cipher();
 
-        Assert.assertArrayEquals(resultState, crypt.stateArray);
+        Assert.assertArrayEquals(resultState, crypt.getStateArray());
     }
 
     @Test
@@ -219,21 +201,13 @@ public class CipherTests {
                 {0x84, 0x09, 0x85, 0x0b},
                 {0x1d, 0xfb, 0x97, 0x32}};
 
-        crypt.keySize = 4;
-        crypt.roundKeys = new int[4][44];
-        crypt.stateArray = new int[4][4];
-
-        for (int i = 0; i < 4; i++) {
-            for (int j = 0; j < 4; j++) {
-                crypt.roundKeys[j][i] = initKey[j][i];
-                crypt.stateArray[i][j] = initState[i][j];
-            }
-        }
+        crypt.initializeRoundKeys(initKey);
+        crypt.setState(initState);
         crypt.keyExpansion();
         crypt.cipher();
         crypt.invCipher();
 
-        Assert.assertArrayEquals(initState, crypt.stateArray);
+        Assert.assertArrayEquals(initState, crypt.getStateArray());
     }
 
     /*
@@ -273,34 +247,25 @@ public class CipherTests {
                 {0x95, 0xdb, 0x11, 0x3a},
                 {0x91, 0x76, 0x78, 0xb2}};
 
-
-        crypt.keySize = 4;
-        crypt.roundKeys = new int[4][44];
-        crypt.stateArray = rowsToColumns(plainTextOne);
-
-        initKey = rowsToColumns(initKey);
-
-        for (int i = 0; i < 4; i++) {
-            for (int j = 0; j < 4; j++) {
-                crypt.roundKeys[j][i] = initKey[j][i];
-            }
-        }
+        crypt.setState(rowsToColumns(plainTextOne));
+        crypt.initializeRoundKeys(initKey);
         
         crypt.keyExpansion();
-        crypt.initializationVector = rowsToColumns(iv);
+        crypt.setInitializationVector(rowsToColumns(iv));
 
         crypt.xorVectorWithState(); // xor the IV, or the previous ciphertext block with the state
         crypt.cipher();
 
-        Assert.assertArrayEquals(crypt.stateArray, rowsToColumns(outputOne));
+        Assert.assertArrayEquals(crypt.getStateArray(), rowsToColumns(outputOne));
 
-        crypt.initializationVector = crypt.stateArray;
-        crypt.stateArray = rowsToColumns(plainTextTwo);
+        crypt.setInitializationVector(crypt.getStateArray());
+        crypt.setState(rowsToColumns(plainTextTwo));
         crypt.xorVectorWithState();
         crypt.cipher();
 
-        Assert.assertArrayEquals(crypt.stateArray, rowsToColumns(outputTwo));
+        Assert.assertArrayEquals(crypt.getStateArray(), rowsToColumns(outputTwo));
     }
+
 
     @Test
     public void testInvShiftRows() {
@@ -317,10 +282,10 @@ public class CipherTests {
                 {2,3,0,1}, // shifted right by two bytes
                 {1,2,3,0}}; // shifted right by three bytes
 
-        crypt.stateArray = unShifted;
+        crypt.setState(unShifted);
         crypt.shiftRows(true);
 
-        Assert.assertArrayEquals(crypt.stateArray, shifted);
+        Assert.assertArrayEquals(crypt.getStateArray(), shifted);
     }
 
     @Test
@@ -395,7 +360,6 @@ public class CipherTests {
         }
         return asWord;
     }
-
 
 }
 

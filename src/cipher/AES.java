@@ -14,13 +14,13 @@ import mode.AESCTR;
 
 public class AES {
 
-    public int[][] stateArray = new int[4][4]; // The state (two dimensional array containing 128 bit block of input data)
+    protected int[][] stateArray = new int[4][4]; // The state (two dimensional array containing 128 bit block of input data)
     private Args cliArgs;
     private int[] initKeyBytes;
-    public int[][] roundKeys;
+    private int[][] roundKeys;
     public int keySize; // 4, 6, 8 depending on number of 32 bit words in the initial key
     private int[] roundCon = {0x01, 0, 0, 0}; // Initial value of the round constant used for key expansion
-    public int[][] initializationVector = new int[4][4];
+    private int[][] initializationVector = new int[4][4];
     private int toPad;
     private FileInputStream fileInput;
     private FileOutputStream fileOutput;
@@ -163,7 +163,7 @@ public class AES {
         }
     }
 
-    protected void setState(int[][] inputState) {
+    public void setState(int[][] inputState) {
         boolean isInputLengthValid = inputState.length == 4;
         for (int i = 0; i < 4; i++) {
             isInputLengthValid = isInputLengthValid && (inputState[i].length == 4);
@@ -174,7 +174,11 @@ public class AES {
         this.stateArray = inputState;
     }
 
-    protected void setKey(int[] keyBytes) {
+    public int[][] getStateArray() {
+        return stateArray;
+    }
+
+    public void setKey(int[] keyBytes) {
         boolean isKeyLengthValid = keyBytes.length == 16 || keyBytes.length == 24 || keyBytes.length == 32;
         if (!isKeyLengthValid) {
             throw new IllegalArgumentException("Key length must be 128, 192, or 256 bits.");
@@ -188,6 +192,35 @@ public class AES {
             }
         }
         this.keyExpansion();
+    }
+
+    public void initializeRoundKeys(int[][] initKey) {
+        boolean isKeyInvalid = initKey.length > 8 || initKey.length <= 2 || initKey.length%2==1;
+        boolean isKeyInBytes = true;
+        for (int i = 0; i < initKey.length; i++) {
+            isKeyInBytes = isKeyInBytes && initKey[i].length == 4;
+        }
+        if (isKeyInvalid || !isKeyInBytes) {
+            throw new IllegalArgumentException("Invalid input. Key must be provided as a n * 4 array when n corresponds to the number of 32 bit words in key.");
+        }
+        this.keySize = initKey.length;
+        this.roundKeys = new int[4][4 * ((keySize)+7)];
+        for (int i = 0; i < 4; i++) {
+            for (int j = 0; j < keySize; j++) {
+                this.roundKeys[i][j] = initKey[j][i];
+            }
+        }
+    }
+
+    public void setInitializationVector(int[][] initVector) {
+        boolean isInitVectorDimValid = initVector.length == 4;
+        for (int i = 0; i < initVector.length; i++) {
+            isInitVectorDimValid = isInitVectorDimValid && initVector[i].length == 4;
+        }
+        if (!isInitVectorDimValid) {
+            throw new IllegalArgumentException("Initialization vector must be provided as 4 x 4 array of integers.");
+        }
+        this.initializationVector = initVector;
     }
 
     /*
@@ -373,7 +406,7 @@ public class AES {
                 i++;
             } while (i+1 <= keySize);
         } catch (IOException iox) {
-            System.out.println("Error occurred while reading key file");
+            System.out.println("Error occurred while reading key file. Is key appropriate length? (Acceptable lengths are 16, 24, or 32 bytes)");
             iox.printStackTrace();
             System.exit(1);
         }

@@ -81,35 +81,27 @@ public class CounterModeTests {
                 {0x86,0x17,0x18,0x7b},
                 {0xb9,0xff,0xfd,0xff}};
 
-        crypt.keySize = 4;
-        crypt.roundKeys = new int[4][44];
-        crypt.stateArray = rowsToColumns(initialCounter);
+        crypt.setState(rowsToColumns(initialCounter));
 
-        initKey = rowsToColumns(initKey);
-
-        for (int i = 0; i < 4; i++) {
-            for (int j = 0; j < 4; j++) {
-                crypt.roundKeys[j][i] = initKey[j][i];
-            }
-        }
+        crypt.initializeRoundKeys(initKey);
 
         crypt.keyExpansion();
         crypt.cipher(); // since we are testing CTR mode the state is actually IV
-        crypt.initializationVector = deepCopy(crypt.stateArray);
-        crypt.stateArray = rowsToColumns(plainTextOne);
+        crypt.setInitializationVector(deepCopy(crypt.getStateArray()));
+        crypt.setState(rowsToColumns(plainTextOne));
         crypt.xorVectorWithState();
 
-        Assert.assertArrayEquals(crypt.stateArray, rowsToColumns(output));
+        Assert.assertArrayEquals(crypt.getStateArray(), rowsToColumns(output));
 
         initialCounter[3][2] = 0xff;
         initialCounter[3][3] = 0x00;
-        crypt.stateArray = rowsToColumns(initialCounter);
+        crypt.setState(rowsToColumns(initialCounter));
         crypt.cipher();
-        crypt.initializationVector = deepCopy(crypt.stateArray);
-        crypt.stateArray = rowsToColumns(plainTextTwo);
+        crypt.setInitializationVector(deepCopy(crypt.getStateArray()));
+        crypt.setState(rowsToColumns(plainTextTwo));
         crypt.xorVectorWithState();
 
-        Assert.assertArrayEquals(crypt.stateArray, rowsToColumns(outputTwo));
+        Assert.assertArrayEquals(crypt.getStateArray(), rowsToColumns(outputTwo));
     }
 
     /*

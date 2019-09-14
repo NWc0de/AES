@@ -1,7 +1,7 @@
 # Java AES
 
 This repository is home to an implementation of the AES (Rijndael) cipher in Java. 
-The suite of methods and ultimate cipher function were tested with example vectors 
+The suite of methods and ultimate cipher functions were tested with example vectors 
 provided by [NIST FISP-197](https://www.nist.gov/publications/advanced-encryption-standard-aes) 
  and [NIST SP 800-38A](https://nvlpubs.nist.gov/nistpubs/Legacy/SP/nistspecialpublication800-38a.pdf)
  to prove compliance with NIST specification (CipherTests.java and CounterModeTests.java).    
