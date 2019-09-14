@@ -20,24 +20,34 @@ public class CounterModeTests {
                                  0x2b, 0x7e, 0x15, 0x16, 0x28, 0x72, 0x0a, 0x13, 0x54, 0x53, 0x55, 0x36, 0x10, 0x11, 0x4f, 0x3c,
                                  0x76, 0x7c, 0x15, 0x16, 0x32, 0x78, 0x0b, 0x18, 0x54, 0x17, 0x15, 0x32, 0x09, 0x4e, 0x4f, 0x4f,
                                  0x62, 0x74, 0x77, 0x09, 0x52, 0x2c, 0x6b, 0x7b,  0x16, 0x32, 0x78, 0x0b, 0x18, 0x54, 0x17, 0x0e};
-        int[] initKey = {0x2b, 0x7e, 0x15, 0x16,0x28, 0xae, 0xd2, 0xa6,0xab, 0xf7, 0x15, 0x88,0x09, 0xcf, 0x4f, 0x3c};
-        int[] initKeyOne = {0x8e, 0x73, 0xb0, 0xf7,0xda, 0x0e, 0x64, 0x52,0xc8, 0x10, 0xf3, 0x2b,0x80, 0x90, 0x79, 0xe5,0x62, 0xf8, 0xea, 0xd2,0x52, 0x2c, 0x6b, 0x7b};
+        int[][] initKey = {
+                {0x2b, 0x7e, 0x15, 0x16},
+                {0x28, 0xae, 0xd2, 0xa6},
+                {0xab, 0xf7, 0x15, 0x88},
+                {0x09, 0xcf, 0x4f, 0x3c}};
+        int[][] initKeyOne = {
+                {0x8e, 0x73, 0xb0, 0xf7},
+                {0xda, 0x0e, 0x64, 0x52},
+                {0xc8, 0x10, 0xf3, 0x2b},
+                {0x80, 0x90, 0x79, 0xe5},
+                {0x62, 0xf8, 0xea, 0xd2},
+                {0x52, 0x2c, 0x6b, 0x7b}};
         int[][] initCount = {
                 {0x2b, 0x7e, 0x15, 0x16},
                 {0x28, 0xae, 0xd2, 0xa6},
                 {0xab, 0xf7, 0x15, 0x88},
                 {0x09, 0xcf, 0x4f, 0x3c}};
 
-        AESCTR crypt = new AESCTR(initialData, initKey, deepCopy(initCount)); // deepCopy to avoid mutability issues
+        AESCTR crypt = new AESCTR(initialData, initKey, AESCTR.deepCopy(initCount)); // deepCopy to avoid mutability issues
         byte[] encrypted = crypt.counterModeCipher();
 
-        crypt.setInternalState(encrypted, initKey, deepCopy(initCount));
+        crypt.setInternalState(encrypted, initKey, AESCTR.deepCopy(initCount));
         byte[] decrypted = crypt.counterModeCipher();
 
-        crypt.setInternalState(initialDataOne, initKeyOne, deepCopy(initCount));
+        crypt.setInternalState(initialDataOne, initKeyOne, AESCTR.deepCopy(initCount));
         byte[] encryptedOne = crypt.counterModeCipher();
 
-        crypt.setInternalState(encryptedOne, initKeyOne, deepCopy(initCount));
+        crypt.setInternalState(encryptedOne, initKeyOne, AESCTR.deepCopy(initCount));
         byte[] decryptedOne = crypt.counterModeCipher();
 
         Assert.assertArrayEquals(decrypted, initialData);
@@ -87,18 +97,17 @@ public class CounterModeTests {
 
         crypt.keyExpansion();
         crypt.cipher(); // since we are testing CTR mode the state is actually IV
-        crypt.setInitializationVector(deepCopy(crypt.getStateArray()));
-        crypt.setState(rowsToColumns(plainTextOne));
+        crypt.setInitializationVector(rowsToColumns(plainTextOne));
         crypt.xorVectorWithState();
 
         Assert.assertArrayEquals(crypt.getStateArray(), rowsToColumns(output));
 
         initialCounter[3][2] = 0xff;
         initialCounter[3][3] = 0x00;
+
         crypt.setState(rowsToColumns(initialCounter));
         crypt.cipher();
-        crypt.setInitializationVector(deepCopy(crypt.getStateArray()));
-        crypt.setState(rowsToColumns(plainTextTwo));
+        crypt.setInitializationVector(rowsToColumns(plainTextTwo));
         crypt.xorVectorWithState();
 
         Assert.assertArrayEquals(crypt.getStateArray(), rowsToColumns(outputTwo));
@@ -115,13 +124,5 @@ public class CounterModeTests {
             }
         }
         return asWord;
-    }
-
-    private int[][] deepCopy(int[][] original ) {
-        int[][] result = new int[original.length][original[0].length]; // assumes dimensions are square
-        for (int i = 0; i < original.length; i++) {
-            System.arraycopy(original[i], 0, result[i], 0, original[i].length);
-        }
-        return result;
     }
 }

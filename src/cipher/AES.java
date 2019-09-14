@@ -16,8 +16,8 @@ public class AES {
 
     protected int[][] stateArray = new int[4][4]; // The state (two dimensional array containing 128 bit block of input data)
     private Args cliArgs;
-    private int[] initKeyBytes;
     private int[][] roundKeys;
+    private int fileSize;
     public int keySize; // 4, 6, 8 depending on number of 32 bit words in the initial key
     private int[] roundCon = {0x01, 0, 0, 0}; // Initial value of the round constant used for key expansion
     private int[][] initializationVector = new int[4][4];
@@ -104,20 +104,21 @@ public class AES {
             iox.printStackTrace();
             System.exit(1);
         }
+        System.out.println("Cipher operations successful. Processed " + crypt.fileSize + " bytes.");
     }
 
-    public void counterModeDecrypt() {
+    private void counterModeDecrypt() {
         byte[] fileBytes = readDataFile();
-        AESCTR counterCrypt = new AESCTR(fileBytes, initKeyBytes, initializationVector);
+        AESCTR counterCrypt = new AESCTR(fileBytes, getInitKeyBytes(), initializationVector);
         fileBytes = counterCrypt.counterModeCipher();
         fileBytes = AESCTR.removePadding(fileBytes);
         writeByteArrayToFile(fileBytes);
     }
 
-    public void counterModeEncrypt() {
+    private void counterModeEncrypt() {
         byte[] fileBytes = readDataFile();
         fileBytes = AESCTR.padByteArray(fileBytes);
-        AESCTR counterCrypt = new AESCTR(fileBytes, initKeyBytes, initializationVector);
+        AESCTR counterCrypt = new AESCTR(fileBytes, getInitKeyBytes(), initializationVector);
         fileBytes = counterCrypt.counterModeCipher();
         writeByteArrayToFile(fileBytes);
     }
@@ -125,7 +126,7 @@ public class AES {
     /*
      * Cipher block chain mode ref. NIST SP 800 38a (https://nvlpubs.nist.gov/nistpubs/Legacy/SP/nistspecialpublication800-38a.pdf)
      */
-    public void cipherBlockChainEncrypt() {
+    private void cipherBlockChainEncrypt() {
         while(readBlockOfDataFile()) {
             xorVectorWithState(); // xor the IV, or the previous ciphertext block with the state
             cipher();
@@ -144,7 +145,7 @@ public class AES {
         }
     }
 
-    public void cipherBlockChainDecrypt() {
+    private void cipherBlockChainDecrypt() {
         while(readBlockOfDataFile()) {
             int[][] temp = deepCopy(stateArray);
             invCipher();
@@ -178,22 +179,6 @@ public class AES {
         return stateArray;
     }
 
-    public void setKey(int[] keyBytes) {
-        boolean isKeyLengthValid = keyBytes.length == 16 || keyBytes.length == 24 || keyBytes.length == 32;
-        if (!isKeyLengthValid) {
-            throw new IllegalArgumentException("Key length must be 128, 192, or 256 bits.");
-        }
-        this.roundCon = new int[]{0x01, 0, 0, 0};
-        this.keySize = keyBytes.length/4;
-        this.roundKeys = new int[4][4 * ((keySize)+7)];
-        for (int i = 0; i < keySize; i++) {
-            for (int j = 0; j < 4; j++) {
-                this.roundKeys[j][i] = keyBytes[j + (i*4)];
-            }
-        }
-        this.keyExpansion();
-    }
-
     public void initializeRoundKeys(int[][] initKey) {
         boolean isKeyInvalid = initKey.length > 8 || initKey.length <= 2 || initKey.length%2==1;
         boolean isKeyInBytes = true;
@@ -201,8 +186,9 @@ public class AES {
             isKeyInBytes = isKeyInBytes && initKey[i].length == 4;
         }
         if (isKeyInvalid || !isKeyInBytes) {
-            throw new IllegalArgumentException("Invalid input. Key must be provided as a n * 4 array when n corresponds to the number of 32 bit words in key.");
+            throw new IllegalArgumentException("Invalid key length. Key must be provided as a n * 4 array when n corresponds to the number of 32 bit words in key.");
         }
+        this.roundCon = new int[]{0x01, 0, 0, 0};
         this.keySize = initKey.length;
         this.roundKeys = new int[4][4 * ((keySize)+7)];
         for (int i = 0; i < 4; i++) {
@@ -221,6 +207,16 @@ public class AES {
             throw new IllegalArgumentException("Initialization vector must be provided as 4 x 4 array of integers.");
         }
         this.initializationVector = initVector;
+    }
+
+    public int[][] getInitKeyBytes() {
+        int[][] initKeyBytes = new int[keySize][4];
+        for (int i = 0; i < 4; i++) {
+            for (int j = 0; j < keySize; j++) {
+                initKeyBytes[j][i] = this.roundKeys[i][j];
+            }
+        }
+        return initKeyBytes;
     }
 
     /*
@@ -265,10 +261,11 @@ public class AES {
         addRoundKey(getRoundKeyWordsInRange(0, keySize-1));
     }
 
-    public void initializeFileOperators() {
+    private void initializeFileOperators() {
         try {
             fileInput = new FileInputStream(cliArgs.filePath);
             bytesToCipher = fileInput.available();
+            fileSize = bytesToCipher;
             File output = new File(cliArgs.output);
             if (output.exists()) {
                 System.out.println("Please specify a unique filename with an appropriate extension");
@@ -285,7 +282,7 @@ public class AES {
     /*
      * Reads 128 bits from the specified filepath into the state array per NIST specification (ref. pg.9 sec 3.4)
      */
-    public boolean readBlockOfDataFile() {
+    private boolean readBlockOfDataFile() {
         boolean isBlockAvailable = true;
         try {
             if (bytesToCipher >= 16) {
@@ -338,7 +335,7 @@ public class AES {
      * Apply PKCS#7 padding
      * Even if no padding is required an extra block is added
      */
-    public void applyPadding() throws java.io.IOException {
+    private void applyPadding() throws java.io.IOException {
         int toRead = 16 - toPad;
         int i = 0, j = 0, padded = 0;
         while (toRead > 0 || padded < toPad) {
@@ -358,7 +355,7 @@ public class AES {
     /*
      * Removes padding, assumes final block will always be padded
      */
-    public void writeFinalBlock() throws IOException {
+    private void writeFinalBlock() throws IOException {
         int toWrite = 16 - stateArray[3][3];
         int i = 0, j = 0;
         while (toWrite > 0) {
@@ -369,12 +366,12 @@ public class AES {
         }
     }
 
-    public void closeFileOperators() throws java.io.IOException {
+    private void closeFileOperators() throws java.io.IOException {
         fileOutput.close();
         fileInput.close();
     }
 
-    public void writeStateToFile() {
+    private void writeStateToFile() {
         try {
             int i = 0, j = 0, toWrite = 0;
             while (toWrite < 16) {
@@ -391,17 +388,15 @@ public class AES {
     /*
      * Reads data from the specified key file into the roundKeys array
      */
-    public void readKeyFile() {
+    private void readKeyFile() {
         try {
             FileInputStream keyFileInput = new FileInputStream(cliArgs.keyFilePath);
             keySize = keyFileInput.available()/4; // determine the number of 32 bit words in the key
-            initKeyBytes = new int[4 * keySize];
             roundKeys = new int[4][4 * ((keySize)+7)]; // the number of 32 bit words in the expanded key
             int i = 0;                                  // is equal (Nr + 1)*Nb where Nr = the number of rounds
             do {                                       // (which is equal to (Nk + 6), Nb = columns in the state array
                 for (int j = 0; j < 4; j++) {         // and Nk = number of 32 bit words in the key
                     roundKeys[j][i] = keyFileInput.read();
-                    initKeyBytes[j + (4*i)] = roundKeys[j][i]; // maintain a copy of initial key block for CTR mode
                 }
                 i++;
             } while (i+1 <= keySize);
@@ -416,7 +411,7 @@ public class AES {
         }
     }
 
-    public void readInitVectorFile() {
+    private void readInitVectorFile() {
         try {
             FileInputStream initVectorInput = new FileInputStream(cliArgs.initVectorFilePath);
             if (initVectorInput.available() != 16) {
