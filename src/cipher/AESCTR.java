@@ -3,9 +3,7 @@
  * Date: 09/12/2019
  * Counter mode for the AES cipher (ref. https://csrc.nist.gov/publications/detail/sp/800-38d/final)
  */
-package mode;
-
-import cipher.AES;
+package cipher;
 
 public class AESCTR extends AES {
 
@@ -52,7 +50,7 @@ public class AESCTR extends AES {
     private void processBlock(byte[] output, byte[] input, int offset) {
         byte[] block = new byte[16];
         System.arraycopy(input, offset*16, block, 0, 16);
-        this.stateArray = AESCTR.deepCopy(currentCounter);
+        this.stateArray = deepCopy(currentCounter);
         this.cipher();
         System.arraycopy(xorBlockWithState(block), 0, output, offset*16, 16);
         this.incrementCounter();
@@ -112,11 +110,4 @@ public class AESCTR extends AES {
         return newBytes;
     }
 
-    public static int[][] deepCopy(int[][] original ) {
-        int[][] result = new int[original.length][original[0].length]; // assumes dimensions are square
-        for (int i = 0; i < original.length; i++) {
-            System.arraycopy(original[i], 0, result[i], 0, original[i].length);
-        }
-        return result;
-    }
 }

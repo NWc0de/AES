@@ -8,7 +8,7 @@ package test;
 import cipher.AES;
 import org.junit.Assert;
 import org.junit.Test;
-import mode.AESCTR;
+import cipher.AESCTR;
 
 public class CounterModeTests {
 
@@ -38,16 +38,16 @@ public class CounterModeTests {
                 {0xab, 0xf7, 0x15, 0x88},
                 {0x09, 0xcf, 0x4f, 0x3c}};
 
-        AESCTR crypt = new AESCTR(initialData, initKey, AESCTR.deepCopy(initCount)); // deepCopy to avoid mutability issues
+        AESCTR crypt = new AESCTR(initialData, initKey, deepCopy(initCount)); // deepCopy to avoid mutability issues
         byte[] encrypted = crypt.counterModeCipher();
 
-        crypt.setInternalState(encrypted, initKey, AESCTR.deepCopy(initCount));
+        crypt.setInternalState(encrypted, initKey, deepCopy(initCount));
         byte[] decrypted = crypt.counterModeCipher();
 
-        crypt.setInternalState(initialDataOne, initKeyOne, AESCTR.deepCopy(initCount));
+        crypt.setInternalState(initialDataOne, initKeyOne, deepCopy(initCount));
         byte[] encryptedOne = crypt.counterModeCipher();
 
-        crypt.setInternalState(encryptedOne, initKeyOne, AESCTR.deepCopy(initCount));
+        crypt.setInternalState(encryptedOne, initKeyOne, deepCopy(initCount));
         byte[] decryptedOne = crypt.counterModeCipher();
 
         Assert.assertArrayEquals(decrypted, initialData);
@@ -171,5 +171,13 @@ public class CounterModeTests {
             }
         }
         return asWord;
+    }
+    
+    private int[][] deepCopy(int[][] original) {
+        int[][] result = new int[original.length][original[0].length]; // assumes square dimensions
+        for (int i = 0; i < original.length; i++) {
+            System.arraycopy(original[i], 0, result[i], 0, original[i].length);
+        }
+        return result;
     }
 }
