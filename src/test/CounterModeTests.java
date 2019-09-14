@@ -114,6 +114,53 @@ public class CounterModeTests {
     }
 
     /*
+     * Test vector lifted from NIST SP 800-38A (https://nvlpubs.nist.gov/nistpubs/Legacy/SP/nistspecialpublication800-38a.pdf)
+     */
+    @Test
+    public void testCounterModeComplianceTwo() {
+        int[][] initKey = {
+                {0x2b, 0x7e, 0x15, 0x16},
+                {0x28, 0xae, 0xd2, 0xa6},
+                {0xab, 0xf7, 0x15, 0x88},
+                {0x09, 0xcf, 0x4f, 0x3c}};
+        int[][] initialCounter = {
+                {0xf0,0xf1,0xf2,0xf3},
+                {0xf4,0xf5,0xf6,0xf7},
+                {0xf8,0xf9,0xfa,0xfb},
+                {0xfc,0xfd,0xfe,0xff}};
+        byte[] plainTextOne = {
+                0x6b, (byte) 0xc1, (byte) 0xbe, (byte) 0xe2,
+                0x2e, 0x40, (byte) 0x9f, (byte) 0x96,
+                (byte) 0xe9, 0x3d, 0x7e, 0x11,
+                0x73, (byte) 0x93, 0x17, 0x2a};
+        byte[] plainTextTwo = {
+                (byte) 0xae, 0x2d, (byte) 0x8a, 0x57,
+                0x1e, 0x03, (byte) 0xac, (byte) 0x9c,
+                (byte) 0x9e, (byte) 0xb7, 0x6f, (byte) 0xac,
+                0x45, (byte) 0xaf, (byte) 0x8e, 0x51};
+        byte[]  output = {
+                (byte) 0x87,0x4d,0x61,(byte) 0x91,
+                (byte) 0xb6,0x20,(byte) 0xe3,0x26,
+                0x1b,(byte) 0xef,0x68,0x64,
+                (byte) 0x99,0x0d,(byte) 0xb6, (byte) 0xce};
+        byte[] outputTwo = {
+                (byte) 0x98,0x06,(byte) 0xf6,0x6b,
+                0x79,0x70,(byte) 0xfd, (byte) 0xff,
+                (byte) 0x86,0x17,0x18,0x7b,
+                (byte) 0xb9, (byte) 0xff, (byte) 0xfd, (byte) 0xff};
+
+        AESCTR crypt = new AESCTR(plainTextOne, initKey, rowsToColumns(initialCounter));
+
+        Assert.assertArrayEquals(crypt.counterModeCipher(), output);
+
+        initialCounter[3][2] = 0xff; // manually increment since NIST incrementation differs from this implementation
+        initialCounter[3][3] = 0x00;
+        crypt.setInternalState(plainTextTwo, initKey, rowsToColumns(initialCounter));
+
+        Assert.assertArrayEquals(crypt.counterModeCipher(), outputTwo);
+    }
+
+    /*
      * Turns the rows of the matrix into the columns
      */
     private int[][] rowsToColumns(int[][] inp) {

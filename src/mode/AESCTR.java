@@ -71,6 +71,7 @@ public class AESCTR extends AES {
     /*
      * Increment counter block (state) by interpreting last four bytes as long
      * ref. NIST SP 800-38D pg. 11 sec. 6.2
+     * Note: Due to the fact that longs are always signed in Java this is not standard incrementation
      */
     private void incrementCounter() {
         long asLong = 0;
@@ -79,7 +80,7 @@ public class AESCTR extends AES {
         }
         asLong = (asLong + 1) % 0x100000000L; // increment and reduce by 2^32
         for (int i = 3; i >= 0; i--) { // decompose long into bytes
-            currentCounter[3][i] =  (int) (asLong & (0xff << (8 * (3-i)))) >>> (8* (3-i));
+            currentCounter[3][i] =  (int) (asLong & (0xff << (8 * (3-i)))) >> (8* (3-i));
         }
     }
 
