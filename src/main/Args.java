@@ -1,4 +1,4 @@
-/**
+/*
  * Author: Spencer Little
  * Date: 08/29/19
  * A class to specify and parse cli arguments for the Main class

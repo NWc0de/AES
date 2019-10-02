@@ -1,4 +1,4 @@
-/**
+/*
  * Author: Spencer Little
  * Date: 09/12/2019
  * Counter mode for the AES cipher (ref. https://csrc.nist.gov/publications/detail/sp/800-38d/final)

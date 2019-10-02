@@ -1,4 +1,4 @@
-/**
+/*
  * Author: Spencer Little (mrlittle@uw.edu)
  * Date: 08/28/18
  * An implementation of the AES (Rijndael) cipher
@@ -6,11 +6,17 @@
  */
 package cipher;
 
+/**
+ * Implements the AES cipher methods and provides an API for encryption/decryption (conforms to NIST spec)
+ * @author  Spencer Little
+ * @version 1.0.0
+ */
 public class AES {
 
     protected int[][] stateArray = new int[4][4]; // The state (two dimensional array containing 128 bit block of input data)
     protected int[][] roundKeys;
-    public int keySize; // 4, 6, 8 depending on number of 32 bit words in the initial key
+    /** 4, 6, 8 depending on number of 32 bit words in the initial key */
+    public int keySize;
     private int[] roundCon = {0x01, 0, 0, 0}; // Initial value of the round constant used for key expansion
     protected int[][] initializationVector = new int[4][4];
 
@@ -56,6 +62,10 @@ public class AES {
     ------------------------------------------
      */
 
+    /**
+     * Sets the input state (assigns by reference, not copied)
+     * @param inputState two dimensional array of bytes (integers) corresponding to block of data
+     */
     public void setState(int[][] inputState) {
         boolean isInputLengthValid = inputState.length == 4;
         for (int i = 0; i < 4; i++) {

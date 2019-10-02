@@ -1,4 +1,4 @@
-/**
+/*
  * Author: Spencer Little
  * Date: 09/14/2019
  * An implementation of CBC and CTR mode AES encryption/decryption via cli program, operates on files
@@ -15,7 +15,12 @@ import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 
-public class CliCipher extends AES {
+/**
+ * Performs encryption/decryption (via CLI arguments) operations using the AES class
+ * @author Spencer Little
+ * @version 1.0.0
+ */
+final class CliCipher extends AES {
 
     private int toPad;
     private FileInputStream fileInput;
@@ -25,6 +30,13 @@ public class CliCipher extends AES {
     private static Args cliArgs;
 
     /*
+     * Enforce non-instantiability with private constructor
+     */
+    private CliCipher() {
+        throw new AssertionError();
+    }
+
+    /**
      * Orchestrates the cipher operations
      * @params command line arguments specifying cipher parameters
      */

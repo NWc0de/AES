@@ -1,4 +1,4 @@
-/**
+/*
  * Author: Spencer Little
  * Date: 08/29/2019
  * A set of unit tests for the various functions of the AES cipher

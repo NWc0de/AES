@@ -1,4 +1,4 @@
-/**
+/*
  * Author: Spencer Little
  * Date: 09/11/2019
  * A set of unit tests for the CTR mode functions of AES
