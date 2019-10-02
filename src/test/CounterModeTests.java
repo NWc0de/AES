@@ -10,6 +10,11 @@ import org.junit.Assert;
 import org.junit.Test;
 import cipher.AESCTR;
 
+/**
+ * Unit tests for CTR mode
+ * @author Spencer Little
+ * @version 1.0.0
+ */
 public class CounterModeTests {
 
     @Test

@@ -77,10 +77,19 @@ public class AES {
         this.stateArray = inputState;
     }
 
+    /**
+     * Getter for the state array
+     * State representation conforms to NIST specification see https://www.nist.gov/publications/advanced-encryption-standard-aes for details
+     * @return two dimensional array of integers corresponding to state array
+     */
     public int[][] getStateArray() {
         return stateArray;
     }
 
+    /**
+     * Initializes the roundKeys array with the initial key bytes
+     * @param initKey initial key bytes (must be an integer array of dimensions 4 x 4, 4 x 6, or 4 x 8)
+     */
     public void initializeRoundKeys(int[][] initKey) {
         boolean isKeyInvalid = initKey.length > 8 || initKey.length <= 2 || initKey.length%2==1;
         boolean isKeyInBytes = true;
@@ -100,6 +109,10 @@ public class AES {
         }
     }
 
+    /**
+     * Sets the IV for CBC mode
+     * @param initVector IV block, must be a 4 x 4 array of integers
+     */
     public void setInitializationVector(int[][] initVector) {
         boolean isInitVectorDimValid = initVector.length == 4;
         for (int i = 0; i < initVector.length; i++) {
@@ -111,6 +124,10 @@ public class AES {
         this.initializationVector = initVector;
     }
 
+    /**
+     * Retrieves the initial key bytes
+     * @return two dimensional integer array corresponding to the initial key bytes provided by user
+     */
     protected int[][] getInitKeyBytes() {
         int[][] initKeyBytes = new int[keySize][4];
         for (int i = 0; i < 4; i++) {
@@ -127,7 +144,7 @@ public class AES {
     ------------------------------------------
      */
 
-    /*
+    /**
      * Performs the cipher operations on the state
      * ref. NIST AES specification pg. 15 fig 5
      */
@@ -145,7 +162,7 @@ public class AES {
         addRoundKey(getRoundKeyWordsInRange(rounds*4, ((rounds+1)*4)-1));
     }
 
-    /*
+    /**
      * Performs inverse cipher operations on the state
      * ref. NIST AES specification pg.21 fig 12
      */
@@ -172,7 +189,7 @@ public class AES {
     /*
      * Performs the byte substitution operation specified in the NIST standard (pg. 15 sec 5.1.1)
      */
-    public void subBytes(boolean inverse) {
+    private void subBytes(boolean inverse) {
         for (int i = 0; i < 4; i++) {
             for (int j = 0; j < 4; j++) {
                 int x = stateArray[i][j] / 16; // each byte is divided into nibbles which form the
@@ -186,7 +203,7 @@ public class AES {
      * Shifts bytes in the last three rows (NIST AES specification pg. 17 sec 5.1.2/pg. 21 sec 5.3.1)
      * @params boolean inverse to indicate the direction of the shift
      */
-    public void shiftRows(boolean inverse) {
+    private void shiftRows(boolean inverse) {
         for (int i = 1; i < 4; i++) {
             int[] tempRow = new int[4];
             System.arraycopy(stateArray[i], 0, tempRow, 0,4);
@@ -201,7 +218,7 @@ public class AES {
      * ref. NIST AES specification pg. 18 sec 5.1.3
      * Note: The column mixing operation assures the plaintext is sufficiently diffused
      */
-    public void mixColumns(boolean inverse) {
+    private void mixColumns(boolean inverse) {
         for (int i = 0; i < 4; i++) {
             int[] cWord = new int[4];
             for (int j = 0; j < 4; j++) {
@@ -219,7 +236,7 @@ public class AES {
      * @params 32 bit word representing column of the state, boolean indicating which coefficients should be used
      * @return 32 bit word, the product of the multiplication operations
      */
-    public int[] mixColumnWord(int[] cWord, boolean inverse) {
+    private int[] mixColumnWord(int[] cWord, boolean inverse) {
         int[] outWord = new int[4];
         int[] coef = inverse ? new int[]{0x0e, 0x0b, 0x0d, 0x09} : new int[]{0x02, 0x03, 0x01, 0x01};
         for (int i = 0; i < 4; i++) {
@@ -232,7 +249,7 @@ public class AES {
         return outWord;
     }
 
-    public void addRoundKey(int[][] keyBlock) {
+    private void addRoundKey(int[][] keyBlock) {
         for (int i = 0; i < 4; i++) {
             for (int j = 0; j < 4; j++) {
                 stateArray[j][i] ^= keyBlock[j][i];
@@ -243,7 +260,7 @@ public class AES {
     /*
      * Performs multiplication in GF(2^8) w/ the Russian Peasant multiplication algorithm
      */
-    public int galoisMult(int a, int b) {
+    private int galoisMult(int a, int b) {
         int res = 0;
         while (a != 0 && b != 0) {
             if ((b & 1) == 1)
@@ -257,6 +274,9 @@ public class AES {
         return res;
     }
 
+    /**
+     * Performs a byte wise xor operation between the state and IV array
+     */
     public void xorVectorWithState() {
         for (int i = 0; i < 4; i++) {
             for (int j = 0; j < 4; j++) {
@@ -284,7 +304,7 @@ public class AES {
      * @params initial 32 bit word in the form of an array of 4 integers
      * @return a 32 bit word in which each byte corresponds to the sbox output from the respective iWord byte
      */
-    public int[] subWord(int[] iWord) {
+    private int[] subWord(int[] iWord) {
         int[] rWord = new int[4];
         for (int i = 0; i < 4; i++) {
             int x = iWord[i] / 16;
@@ -299,7 +319,7 @@ public class AES {
      * @params initial 32 bit word in the word of an array of 4 integers
      * @return a 32 bit word in which each byte is shifted to the left
      */
-    public int[] rotWord(int[] iWord) {
+    private int[] rotWord(int[] iWord) {
         int[] rWord = new int[4];
         for (int i = 0; i < 4; i ++) {
             int x = (i + 1) == 4 ? 0 : i + 1;
@@ -308,9 +328,10 @@ public class AES {
         return rWord;
     }
 
-    /*
+    /**
      * The Key Expansion method, creates the round keys
      * ref. NIST AES specification pg. 20 fig. 11
+     * Fills the roundKey array
      */
     public void keyExpansion() {
         int i = keySize;
@@ -326,7 +347,7 @@ public class AES {
         }
     }
 
-    public int[] getRoundKeyWordAt(int i) {
+    private int[] getRoundKeyWordAt(int i) {
         int[] roundWord = new int[4];
         for (int j = 0; j < 4; j++) {
             roundWord[j] = roundKeys[j][i];
@@ -334,13 +355,13 @@ public class AES {
         return roundWord;
     }
 
-    public void setRoundKeysAt(int i, int[] word) {
+    private void setRoundKeysAt(int i, int[] word) {
         for (int j = 0; j < 4; j++) {
             roundKeys[j][i] = word[j];
         }
     }
 
-    public int[] xorWords(int[] wordOne, int[] wordTwo) {
+    private int[] xorWords(int[] wordOne, int[] wordTwo) {
         int[] product = new int[4];
         for (int i = 0; i < 4; i++) {
             product[i] = wordOne[i] ^ wordTwo[i];
@@ -348,7 +369,7 @@ public class AES {
         return product;
     }
 
-    public int[][] getRoundKeyWordsInRange(int i, int j) {
+    private int[][] getRoundKeyWordsInRange(int i, int j) {
         int[][] roundKeyBlock = new int[4][i+j+1];
         int currentWord = 0;
         for (int x = i; x <= j; x++) {
@@ -366,7 +387,7 @@ public class AES {
      * @return a 32 bit word which corresponds to the required round constant
      * Because the round constants will never be needed out of order this method saves time and space
      */
-    public int[] getNextRCon(int i) {
+    private int[] getNextRCon(int i) {
         // Return the initial value of rCon, or multiply previous value by 2 to compute next constant
         if (i == 1) {
             return roundCon;

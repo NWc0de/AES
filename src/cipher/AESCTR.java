@@ -5,18 +5,32 @@
  */
 package cipher;
 
+/**
+ * Implementation CTR mode via the AES class
+ * @author Spencer Little
+ * @version 1.0.0
+ */
 public class AESCTR extends AES {
 
     private byte[] inputBlocks;
     private int[][] currentCounter;
 
+    /**
+     * Initializes the cipher object with user data
+     * @param inputBlocks array of bytes to be ciphered
+     * @param keyBytes initial key bytes
+     * @param counterBlock initial counter block
+     */
     public AESCTR(byte[] inputBlocks, int[][] keyBytes, int[][] counterBlock) {
         super();
         setInternalState(inputBlocks, keyBytes, counterBlock);
     }
 
-    /*
-     * Sets the round keys, counter block, and input data
+    /**
+     * Sets the round keys, counter block, and input data (performs key expansion)
+     * @param inputBlocks array of bytes to be ciphered
+     * @param keyBytes initial key bytes
+     * @param counterBlock initial counter block
      */
     public void setInternalState(byte[] inputBlocks, int[][] keyBytes, int[][] counterBlock) {
         super.setState(counterBlock);
@@ -36,6 +50,10 @@ public class AESCTR extends AES {
     ------------------------------------------
      */
 
+    /**
+     * Performs the cipher operation based on the object state and returns encrypted bytes
+     * @return array of bytes corresponding to encrypted inputBlocks
+     */
     public byte[] counterModeCipher() {
         byte[] cipherBlocks = new byte[inputBlocks.length];
         for (int i = 0; i < (inputBlocks.length/16); i++) {
