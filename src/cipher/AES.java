@@ -79,7 +79,7 @@ public class AES {
 
     /**
      * Getter for the state array
-     * State representation conforms to NIST specification see https://www.nist.gov/publications/advanced-encryption-standard-aes for details
+     * State representation conforms to <a href='https://www.nist.gov/publications/advanced-encryption-standard-aes'>NIST specification </a>
      * @return two dimensional array of integers corresponding to state array
      */
     public int[][] getStateArray() {
@@ -88,16 +88,17 @@ public class AES {
 
     /**
      * Initializes the roundKeys array with the initial key bytes
-     * @param initKey initial key bytes (must be an integer array of dimensions 4 x 4, 4 x 6, or 4 x 8)
+     * @param initKey initial key bytes (must be an integer array of dimensions 4 x 4, 6 x 4, or 8 x 4)
      */
     public void initializeRoundKeys(int[][] initKey) {
-        boolean isKeyInvalid = initKey.length > 8 || initKey.length <= 2 || initKey.length%2==1;
+        boolean isKeyRowValid = initKey.length <= 8 && initKey.length >= 4 && initKey.length%2==0;
         boolean isKeyInBytes = true;
-        for (int i = 0; i < initKey.length; i++) {
-            isKeyInBytes = isKeyInBytes && initKey[i].length == 4;
+        for (int[] byteRow : initKey) {
+            isKeyInBytes = isKeyInBytes && byteRow.length == 4;
         }
-        if (isKeyInvalid || !isKeyInBytes) {
-            throw new IllegalArgumentException("Invalid key length. Key must be provided as a n * 4 array when n corresponds to the number of 32 bit words in key.");
+        if (!isKeyRowValid || !isKeyInBytes) {
+            throw new IllegalArgumentException("Invalid key length. Key must be provided as a n * 4 array when n corresponds to the number of 32 bit words in key. \n" +
+                                               " Valid dimensions: 4 x 4, 6 x 4, 8 x 4");
         }
         this.roundCon = new int[]{0x01, 0, 0, 0};
         this.keySize = initKey.length;

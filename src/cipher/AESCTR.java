@@ -16,10 +16,8 @@ public class AESCTR extends AES {
     private int[][] currentCounter;
 
     /**
-     * Initializes the cipher object with user data
-     * @param inputBlocks array of bytes to be ciphered
-     * @param keyBytes initial key bytes
-     * @param counterBlock initial counter block
+     * Initializes the cipher object with user data, calls {@code setInternalState()}
+     * @see #setInternalState(byte[], int[][], int[][])
      */
     public AESCTR(byte[] inputBlocks, int[][] keyBytes, int[][] counterBlock) {
         super();
@@ -28,9 +26,9 @@ public class AESCTR extends AES {
 
     /**
      * Sets the round keys, counter block, and input data (performs key expansion)
-     * @param inputBlocks array of bytes to be ciphered
-     * @param keyBytes initial key bytes
-     * @param counterBlock initial counter block
+     * @param inputBlocks array of bytes to be ciphered (must conform to 16 byte block size)
+     * @param keyBytes initial key bytes (integer array of dimensions 4 x 4, 6 x 4, or 8 x 4)
+     * @param counterBlock initial counter block (integer array of dimension 4 x 4)
      */
     public void setInternalState(byte[] inputBlocks, int[][] keyBytes, int[][] counterBlock) {
         super.setState(counterBlock);
@@ -40,8 +38,24 @@ public class AESCTR extends AES {
             throw new IllegalArgumentException("Input must conform to 16 byte block length.");
         }
         this.inputBlocks = inputBlocks;
-        this.currentCounter = counterBlock;
+        this.setInitialCounter(counterBlock);
         this.keyExpansion();
+    }
+
+    /**
+     * Sets the initial counter block
+     * @param counterBlock (must be integer array of dimension 4 x 4)
+     */
+    public void setInitialCounter(int[][] counterBlock) {
+        boolean isRowCountValid = counterBlock.length == 4;
+        boolean isColumnCountValid = true;
+        for (int[] intRow : counterBlock) {
+            isColumnCountValid = isColumnCountValid && intRow.length == 4;
+        }
+        if (!(isRowCountValid && isColumnCountValid)) {
+            throw new IllegalArgumentException("Initial counter block must be integer array of dimension 4 x 4.");
+        }
+        this.currentCounter = counterBlock;
     }
 
     /*
@@ -51,7 +65,7 @@ public class AESCTR extends AES {
      */
 
     /**
-     * Performs the cipher operation based on the object state and returns encrypted bytes
+     * Performs the cipher operation based on the object state
      * @return array of bytes corresponding to encrypted inputBlocks
      */
     public byte[] counterModeCipher() {

@@ -1,7 +1,7 @@
 /*
  * Author: Spencer Little
  * Date: 09/14/2019
- * An implementation of CBC and CTR mode AES encryption/decryption via cli program, operates on files
+ * An implementation of CBC and CTR mode AES encryption/decryption via cli program, operates on files.
  */
 package main;
 
@@ -28,13 +28,6 @@ final class CliCipher extends AES {
     private int bytesToCipher;
     private int fileSize;
     private static Args cliArgs;
-
-    /*
-     * Enforce non-instantiability with private constructor
-     */
-    private CliCipher() {
-        throw new AssertionError();
-    }
 
     /**
      * Orchestrates the cipher operations
